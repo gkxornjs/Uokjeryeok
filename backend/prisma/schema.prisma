@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  onboarding Onboarding?
+  records   Record[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Onboarding {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  gender        String
+  ageGroup      String
+  occupation    String
+  primaryGoals  String[] // String array
+  completed     Boolean  @default(false)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Record {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime // 기록 날짜 (자정 기준)
+  content   Json?    // 자유 메모/투두 등
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
