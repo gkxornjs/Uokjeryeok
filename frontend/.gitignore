@@ -1,0 +1,25 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build artifacts
+dist/
+.next/
+.out/
+coverage/
+
+# Env
+.env
+.env.*    # .env.local, .env.production 등 전부 무시
+
+# Prisma
+*.db-journal
+*.sqlite
+dev.db
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
