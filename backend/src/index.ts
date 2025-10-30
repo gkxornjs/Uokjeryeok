@@ -4,6 +4,11 @@ import cors from 'cors'
 import morgan from 'morgan'
 import { PrismaClient } from '@prisma/client'
 
+import authRouter from './routes/auth'
+import recordsRouter from './routes/records'
+import statsRouter from './routes/stats'
+import onboardingRouter from './routes/onboarding'
+
 const app = express()
 const prisma = new PrismaClient()
 
@@ -24,6 +29,13 @@ app.get('/', (_, res) => res.status(200).send('ok'))
 app.get('/health', (_, res) => res.status(200).json({ ok: true }))
 
 // ... (기존 라우트 mount: /auth, /records, /stats 등)
+app.use('/auth', authRouter)          // ⬅️ POST /auth/signup, POST /auth/login
+app.use('/records', recordsRouter)    // ⬅️ GET/POST /records/...
+app.use('/stats', statsRouter)
+app.use('/onboarding', onboardingRouter)
+
+app.use((req, res) => res.status(404).json({ message: 'Not Found' }))
+
 
 app.listen(PORT, HOST, () => {
   console.log(`[backend] listening on http://${HOST}:${PORT}`)
