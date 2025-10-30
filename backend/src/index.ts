@@ -33,7 +33,7 @@ app.use('/auth', authRouter(prisma))          // ⬅️ POST /auth/signup, POST 
 app.use('/records', recordsRouter(prisma))    // ⬅️ GET/POST /records/...
 app.use('/stats', statsRouter(prisma))
 app.use('/onboarding', onboardingRouter(prisma))
-
+app.post('/auth/__ping', (req,res)=>res.json({ok:true}))
 app.use((req, res) => res.status(404).json({ message: 'Not Found' }))
 
 
