@@ -68,7 +68,7 @@ export default function CalendarHeatmap({ currentDate, onOpenDailyRecord }: Prop
   const weekDays = ['일', '월', '화', '수', '목', '금', '토']
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-6 text-[15px]">
        <div className="grid grid-cols-7 gap-3">
         {weekDays.map((w, i) => (
           <div
@@ -101,12 +101,12 @@ export default function CalendarHeatmap({ currentDate, onOpenDailyRecord }: Prop
               className={[
                 'h-20 rounded-xl border bg-white text-left px-3 pt-2',
                 'hover:shadow-sm hover:bg-muted/40 transition-all',
-                isToday ? 'ring-2 ring-blue-200 bg-blue-50' : '',
+                isToday ? 'ring-2 ring-gray-300 bg-gray-50' : '',
               ].join(' ')}
               title={iso}
             >
               <div className="flex items-start justify-between">
-                <span className="text-[15px] font-medium">{day}</span>
+                <span className="text-[17px] font-medium">{day}</span>
                 <Circle className={`w-2.5 h-2.5 ${getDotColor(iso)} fill-current mt-1`} />
               </div>
             </button>
@@ -115,7 +115,7 @@ export default function CalendarHeatmap({ currentDate, onOpenDailyRecord }: Prop
       </div>
 
       {/* 범례 */}
-      <div className="flex items-center gap-5 text-sm pt-1">
+      <div className="flex items-center justify-center gap-6 text-sm pt-1">
         <div className="flex items-center gap-2">
           <Circle className="w-2.5 h-2.5 text-sky-500 fill-current" />
           <span>기록함</span>
