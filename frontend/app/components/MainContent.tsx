@@ -3,7 +3,7 @@
 import CalendarHeatmap from './CalendarHeatmap';
 import { Button } from './ui/button';
 import { PenTool } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { api } from '../lib/api'
 import KpiTriplet from './KpiTriplet';
 
@@ -18,6 +18,8 @@ export function MainContent({ currentDate, onOpenDailyRecord }: MainContentProps
   const completionRate = 85; // 예: Math.round(done/total*100)
   const activeDays = 12;     // 예: 기록이 있는 날짜 수
   const [kpi, setKpi] = useState({ completionRate: 0, activeDays: 0, streakDays: 0 })
+  const year = currentDate.getFullYear()
+  const month = currentDate.getMonth() + 1
 
    useEffect(() => {
     // 로그인되어 있어야 토큰이 붙습니다.
@@ -29,28 +31,27 @@ export function MainContent({ currentDate, onOpenDailyRecord }: MainContentProps
   return (
     <main className="p-6 space-y-6 max-w-[1200px] mx-auto">{/*전체 폭 제한*/}
       {/* 연속 기록 배너 */}
-      <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl p-6">
-        <h2 className="text-xl font-semibold flex items-center">
-          🔥 연속 기록 {streakDays}일 달성 중!
-        </h2>
-        <p className="text-orange-100 mt-2">
-          훌륭해요! 꾸준한 기록이 습관을 만들어갑니다.
-        </p>
-      </div>
+   <section className="rounded-xl bg-gradient-to-r from-orange-500 to-red-500 text-white px-5 py-4">
+        <h2 className="text-lg font-semibold">오늘부터 기록을 시작해보세요!</h2>
+        <p className="text-white/90 mt-1">꾸준한 기록이 목표 달성의 시작입니다.</p>
+      </section>
 
       {/* Calendar Heatmap + KPI */}
          {/* Calendar Heatmap */}
-      <div className="relative group">
-        <div className="relative bg-card rounded-xl border border-border p-6 xl:pr-12"> {/* ✅ 오른쪽 패딩 강화 */}
-          <h3 className="text-lg font-semibold mb-4">월간 기록 현황</h3>
-
-          {/* ✅ 모달 없이 바로 이동시키는 콜백 전달 */}
-          <CalendarHeatmap
-            currentDate={currentDate}
-            onOpenDailyRecord={onOpenDailyRecord}
-          />
+       <section className="rounded-xl border bg-card p-6 xl:pr-12">
+        {/* 카드 헤더 */}
+        <div className="mb-4">
+          <div className="text-sm text-muted-foreground">월간 기록 현황</div>
+          <div className="mt-1 text-xl font-semibold">{year}년 {month}월</div>
         </div>
-      </div>
+
+        {/* 캘린더 */}
+        <CalendarHeatmap
+          currentDate={currentDate}
+          onOpenDailyRecord={onOpenDailyRecord}  // 날짜 클릭 → 바로 일일기록 이동
+        />
+      </section>
+      
 
         {/* KPI 3종 (완료율/활동일수/연속일수) */}
         <KpiTriplet

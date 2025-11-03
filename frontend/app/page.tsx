@@ -17,7 +17,7 @@ import type { PageType } from '@/types/navigation'
 import { me } from '@/app/lib/auth' 
 
 export default function Page() {
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 7, 26))
+  const [currentDate, setCurrentDate] = useState(new Date())
   const [currentPage, setCurrentPage] = useState<PageType>('login')  // 로그인 먼저
 
    const [bootstrapped, setBootstrapped] = useState(false)
