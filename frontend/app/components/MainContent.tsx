@@ -9,12 +9,11 @@ import KpiTriplet from './KpiTriplet';
 
 interface MainContentProps {
   currentDate: Date;
-  /** 선택 날짜로 일일 기록 페이지로 이동하는 콜백 (상위에서 내려줌) */
+  /* 선택 날짜로 일일 기록 페이지로 이동하는 콜백 */
   onOpenDailyRecord?: (date: Date) => void;
 }
 
 export function MainContent({ currentDate, onOpenDailyRecord }: MainContentProps) {
-  // Mock data - 실제 값으로 교체해서 쓰세요
   const streakDays = 7;
   const completionRate = 85; // 예: Math.round(done/total*100)
   const activeDays = 12;     // 예: 기록이 있는 날짜 수
@@ -28,8 +27,8 @@ export function MainContent({ currentDate, onOpenDailyRecord }: MainContentProps
   }, [])
 
   return (
-    <main className="p-6 space-y-6">
-      {/* Streak Counter */}
+    <main className="p-6 space-y-6 max-w-[1200px] mx-auto">{/*전체 폭 제한*/}
+      {/* 연속 기록 배너 */}
       <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl p-6">
         <h2 className="text-xl font-semibold flex items-center">
           🔥 연속 기록 {streakDays}일 달성 중!
@@ -40,14 +39,18 @@ export function MainContent({ currentDate, onOpenDailyRecord }: MainContentProps
       </div>
 
       {/* Calendar Heatmap + KPI */}
-      <div className="bg-card rounded-xl p-6 border border-border">
-        <h3 className="text-lg font-semibold mb-4">월간 기록 현황</h3>
+         {/* Calendar Heatmap */}
+      <div className="relative group">
+        <div className="relative bg-card rounded-xl border border-border p-6 xl:pr-12"> {/* ✅ 오른쪽 패딩 강화 */}
+          <h3 className="text-lg font-semibold mb-4">월간 기록 현황</h3>
 
-        <CalendarHeatmap
-          currentDate={currentDate}
-          /** 캘린더 모달의 '일일 기록 작성하기'에서 사용 */
-          onOpenDailyRecord={onOpenDailyRecord}
-        />
+          {/* ✅ 모달 없이 바로 이동시키는 콜백 전달 */}
+          <CalendarHeatmap
+            currentDate={currentDate}
+            onOpenDailyRecord={onOpenDailyRecord}
+          />
+        </div>
+      </div>
 
         {/* KPI 3종 (완료율/활동일수/연속일수) */}
         <KpiTriplet
@@ -56,8 +59,6 @@ export function MainContent({ currentDate, onOpenDailyRecord }: MainContentProps
       streakDays={kpi.streakDays}
       className="mt-6"
     />
-      </div>
-
       {/* CTA Button */}
       <div className="flex justify-center">
         <Button
