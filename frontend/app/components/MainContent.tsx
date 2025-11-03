@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarHeatmap } from './CalendarHeatmap';
+import CalendarHeatmap from './CalendarHeatmap';
 import { Button } from './ui/button';
 import { PenTool } from 'lucide-react'
 import { useEffect, useState } from 'react'
