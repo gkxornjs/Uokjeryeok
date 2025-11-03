@@ -19,7 +19,7 @@ export default function CalendarHeatmap({ currentDate, onOpenDailyRecord }: Prop
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
-
+   const firstDay = new Date(year, month, 1).getDay()
   /** 이 달의 각 날짜 ISO를 미리 계산 */
   const monthDatesISO = useMemo(() => {
     const arr: string[] = []
@@ -64,41 +64,50 @@ export default function CalendarHeatmap({ currentDate, onOpenDailyRecord }: Prop
 
   // ----- 렌더링 -----
   // 요일 헤더
+  const todayISO = toISODate(new Date())
   const weekDays = ['일', '월', '화', '수', '목', '금', '토']
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-7 gap-2 mb-4">
+       <div className="grid grid-cols-7 gap-3">
         {weekDays.map((w, i) => (
-          <div key={i} className={`text-center font-medium py-2 ${i === 0 || i === 6 ? 'text-red-500' : 'text-foreground'}`}>
+          <div
+            key={i}
+            className={`text-center text-sm font-medium ${i === 0 ? 'text-red-500' : ''}`}
+          >
             {w}
           </div>
         ))}
       </div>
 
-      {/* 날짜 그리드 */}
-      <div className="grid grid-cols-7 gap-2">
-        {Array.from({ length: daysInMonth }, (_, idx) => {
-          const d = idx + 1
-          const dateObj = new Date(year, month, d)
-          const dateISO = toISODate(dateObj)
+      {/* 날짜 박스 그리드 */}
+      <div className="grid grid-cols-7 gap-3">
+        {/* 앞쪽 비어있는 칸 (1일 요일 오프셋) */}
+        {Array.from({ length: firstDay }).map((_, i) => (
+          <div key={`empty-${i}`} />
+        ))}
 
-          // 1일의 요일만큼 앞 공백 만들기
-          const firstDayOfMonth = new Date(year, month, 1).getDay()
-          const isFirstCell = d === 1
-          const offsetStyle = isFirstCell ? { gridColumnStart: firstDayOfMonth + 1 } : undefined
+        {/* 날짜들 */}
+        {Array.from({ length: daysInMonth }, (_, i) => {
+          const day = i + 1
+          const dateObj = new Date(year, month, day)
+          const iso = toISODate(dateObj)
+          const isToday = iso === todayISO
 
           return (
             <button
-              key={dateISO}
-              onClick={() => handleDayClick(dateObj)}
-              className="h-16 rounded-lg border border-border bg-background hover:bg-muted/50 transition-colors text-left px-3 pt-2"
-              style={offsetStyle as React.CSSProperties}
-              title={dateISO}
+              key={iso}
+              onClick={() => onOpenDailyRecord?.(dateObj)}
+              className={[
+                'h-20 rounded-xl border bg-white text-left px-3 pt-2',
+                'hover:shadow-sm hover:bg-muted/40 transition-all',
+                isToday ? 'ring-2 ring-blue-200 bg-blue-50' : '',
+              ].join(' ')}
+              title={iso}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-sm">{d}</span>
-                <Circle className={`w-2.5 h-2.5 ${getDotColor(dateISO)} fill-current`} />
+              <div className="flex items-start justify-between">
+                <span className="text-[15px] font-medium">{day}</span>
+                <Circle className={`w-2.5 h-2.5 ${getDotColor(iso)} fill-current mt-1`} />
               </div>
             </button>
           )
@@ -106,7 +115,7 @@ export default function CalendarHeatmap({ currentDate, onOpenDailyRecord }: Prop
       </div>
 
       {/* 범례 */}
-      <div className="flex items-center gap-4 pt-2 text-sm">
+      <div className="flex items-center gap-5 text-sm pt-1">
         <div className="flex items-center gap-2">
           <Circle className="w-2.5 h-2.5 text-sky-500 fill-current" />
           <span>기록함</span>
