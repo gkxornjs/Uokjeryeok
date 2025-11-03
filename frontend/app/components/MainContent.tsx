@@ -15,12 +15,12 @@ interface MainContentProps {
 
 export function MainContent({ currentDate, onOpenDailyRecord }: MainContentProps) {
   const streakDays = 7;
-  const completionRate = 85; // 예: Math.round(done/total*100)
-  const activeDays = 12;     // 예: 기록이 있는 날짜 수
+  const [completionRate, setCompletionRate] = useState(0) // 0~100
+  const [activeDays, setActiveDays] = useState(0)
   const [kpi, setKpi] = useState({ completionRate: 0, activeDays: 0, streakDays: 0 })
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth() + 1
-
+ const goToday = () => onOpenDailyRecord?.(new Date())
    useEffect(() => {
     // 로그인되어 있어야 토큰이 붙습니다.
     api<{ completionRate: number; activeDays: number; streakDays: number }>('/stats/monthly')
@@ -53,23 +53,31 @@ export function MainContent({ currentDate, onOpenDailyRecord }: MainContentProps
       </section>
       
 
-        {/* KPI 3종 (완료율/활동일수/연속일수) */}
-        <KpiTriplet
-      completionRate={kpi.completionRate}
-      activeDays={kpi.activeDays}
-      streakDays={kpi.streakDays}
-      className="mt-6"
-    />
-      {/* CTA Button */}
-      <div className="flex justify-center">
+      {/* ✅ KPI: 연속 일수 카드 삭제, 활동 일수(왼쪽) → 완료율(오른쪽) */}
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* 활동 일수 (왼쪽) */}
+        <div className="rounded-2xl border bg-emerald-50/70 ring-1 ring-emerald-100 p-8 text-center">
+          <div className="text-5xl font-extrabold text-emerald-600">{activeDays}</div>
+          <div className="mt-3 text-emerald-700/90">활동 일수</div>
+        </div>
+
+        {/* 완료율 (오른쪽) */}
+        <div className="rounded-2xl border bg-indigo-50/70 ring-1 ring-indigo-100 p-8 text-center">
+          <div className="text-5xl font-extrabold text-indigo-600">
+            {Math.round(completionRate)}%
+          </div>
+          <div className="mt-3 text-indigo-700/90">완료율</div>
+        </div>
+      </section>
+
+      {/* ✅ 하단 고정 버튼: 화면 맨 아래 중앙 고정 */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
         <Button
           size="lg"
-          className="px-8 py-3 text-base"
-          /** 오늘(현 선택일) 바로 쓰기 */
-          onClick={() => onOpenDailyRecord?.(currentDate)}
+          onClick={goToday}
+          className="px-6 py-5 rounded-xl shadow-lg bg-black text-white hover:bg-black/90"
         >
-          <PenTool className="w-5 h-5 mr-2" />
-          ✍ 오늘 기록 쓰기
+          오늘 기록 쓰기
         </Button>
       </div>
     </main>
