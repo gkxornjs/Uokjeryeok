@@ -19,7 +19,7 @@ CREATE TABLE "Onboarding" (
     "occupation" TEXT NOT NULL,
     "primaryGoals" TEXT[],
     "completed" BOOLEAN NOT NULL DEFAULT false,
-
+    
     CONSTRAINT "Onboarding_pkey" PRIMARY KEY ("id")
 );
 
@@ -45,7 +45,7 @@ CREATE UNIQUE INDEX "Onboarding_userId_key" ON "Onboarding"("userId");
 CREATE UNIQUE INDEX "Record_userId_date_key" ON "Record"("userId", "date");
 
 -- AddForeignKey
-ALTER TABLE "Onboarding" ADD CONSTRAINT "Onboarding_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Onboarding" ADD COLUMN "marketingConsent" BOOLEAN NOT NULL DEFAULT false;
 
 -- AddForeignKey
 ALTER TABLE "Record" ADD CONSTRAINT "Record_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
