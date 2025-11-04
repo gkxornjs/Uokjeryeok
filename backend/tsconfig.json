@@ -12,5 +12,5 @@
     "strict": true,
     "noImplicitAny": false    // ✅ 당장은 any 허용(빨리 빌드 통과용)
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "src/types/**/*.d.ts"]
 }

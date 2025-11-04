@@ -17,10 +17,35 @@ const PORT = Number(process.env.PORT || 4000)
 // ✅ 반드시 0.0.0.0 로 바인딩 (localhost X)
 const HOST = '0.0.0.0'
 
+const allowedOrigins = (process.env.CORS_ORIGIN ?? '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean)
+console.log('[CORS] allowedOrigins:', allowedOrigins)
+
 app.use(cors({
-  origin: (process.env.CORS_ORIGIN?.split(',') ?? ['http://localhost:3000']),
+  origin(origin, callback) {
+    if (!origin) return callback(null, true)                // 서버-서버, curl 등
+    if (allowedOrigins.includes(origin)) return callback(null, true)
+    return callback(new Error('Not allowed by CORS'))
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],        // preflight에서 사용
+  optionsSuccessStatus: 204
 }))
+
+// ✅ Preflight 수동 핸들러(보수적으로)
+app.options('*', (req, res) => {
+  const origin = req.headers.origin as string | undefined
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin)
+  }
+  res.header('Access-Control-Allow-Credentials', 'true')
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
+  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+  res.sendStatus(204)
+})
 app.use(express.json())
 app.use(morgan('dev'))
 
