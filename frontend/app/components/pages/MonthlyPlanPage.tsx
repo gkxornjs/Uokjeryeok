@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import toast from 'react-hot-toast'
 import { useDrag, useDrop } from 'react-dnd'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
@@ -145,7 +146,10 @@ export function MonthlyPlanPage({
   const handleSave = async () => {
   const key = monthAnchor(currentDate)
   const payload: MonthlyContent = { monthlyMotto, goals, quickMemos, todos, areaGoals, feedback }
-  try { await saveRecord(key, payload); onGoDashboard?.() } catch (e) { console.error('monthly save error', e) }
+  try { await saveRecord(key, payload); 
+    toast.success('저장되었습니다.')} catch (e) 
+    { toast.error('저장에 실패했습니다.')
+      console.error('monthly save error', e) }
 }
 
   // 부모 통지

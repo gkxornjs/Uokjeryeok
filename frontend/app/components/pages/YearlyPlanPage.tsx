@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useDrag, useDrop } from 'react-dnd'
+import toast from 'react-hot-toast'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { Plus, GripVertical, X } from 'lucide-react'
@@ -142,7 +143,10 @@ export function YearlyPlanPage({
 const handleSave = async () => {
   const key = yearAnchor(currentDate)
   const payload: YearlyContent = { yearlyMotto, goals, quickMemos, todos, areaGoals, feedback }
-  try { await saveRecord(key, payload); onGoDashboard?.() } catch (e) { console.error('yearly save error', e) }
+  try { await saveRecord(key, payload); 
+      toast.success('저장되었습니다.')} catch (e) 
+    { toast.error('저장에 실패했습니다.')
+      console.error('yearly save error', e) }
 }
 
   useEffect(() => {

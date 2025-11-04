@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useDrag, useDrop } from 'react-dnd'
+import toast from 'react-hot-toast'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { Plus, GripVertical, X, Save, Clock } from 'lucide-react'
@@ -153,8 +154,9 @@ const handleSave = async () => {
   }
   try {
     await saveRecord(key, payload)   // ⬅️ DB 저장
-    onGoDashboard?.()               // ⬅️ 저장 후 대시보드 이동
+    toast.success('저장되었습니다.')            // ⬅️ 저장 후 대시보드 이동
   } catch (e) {
+    toast.error('저장에 실패했습니다.')
     console.error('weekly save error', e)
   }
 }

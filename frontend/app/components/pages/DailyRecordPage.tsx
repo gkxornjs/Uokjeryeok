@@ -19,6 +19,8 @@ import type {
   ChecklistItem,
 } from '@/types/records'   // 별칭이 없으면 '../../types/records'
 import { isDailyContent } from '@/types/records';
+import toast from 'react-hot-toast'
+
 
 interface DailyRecordPageProps {
   currentDate: Date
@@ -193,8 +195,9 @@ useEffect(() => {
 
     try {
       await saveRecord(dateISO, payload)
-      onGoDashboard?.()
+      toast.success('저장되었습니다.')
     } catch (e) {
+      toast.error('저장에 실패했습니다.')
       console.error('save error', e)
       // TODO: 토스트/알림
     }

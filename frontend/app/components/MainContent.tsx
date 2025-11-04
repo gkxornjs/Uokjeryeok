@@ -20,6 +20,13 @@ export function MainContent({ currentDate, onOpenDailyRecord }: MainContentProps
   const [kpi, setKpi] = useState({ completionRate: 0, activeDays: 0, streakDays: 0 })
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth() + 1
+
+  const handleSummary = (s: { activeDays: number; completionRate: number }) => {
+    setActiveDays(s.activeDays)
+    setCompletionRate(s.completionRate)
+  }
+
+
  const goToday = () => onOpenDailyRecord?.(new Date())
    useEffect(() => {
     // 로그인되어 있어야 토큰이 붙습니다.
@@ -48,12 +55,13 @@ export function MainContent({ currentDate, onOpenDailyRecord }: MainContentProps
         {/* 캘린더 */}
         <CalendarHeatmap
           currentDate={currentDate}
+          onSummaryChange={handleSummary} 
           onOpenDailyRecord={onOpenDailyRecord}  // 날짜 클릭 → 바로 일일기록 이동
         />
       </section>
       
 
-      {/* ✅ KPI: 연속 일수 카드 삭제, 활동 일수(왼쪽) → 완료율(오른쪽) */}
+      {/* KPI: 활동 일수(왼쪽) 완료율(오른쪽) */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 활동 일수 (왼쪽) */}
         <div className="rounded-2xl border bg-emerald-50/70 ring-1 ring-emerald-100 p-8 text-center">
@@ -70,7 +78,7 @@ export function MainContent({ currentDate, onOpenDailyRecord }: MainContentProps
         </div>
       </section>
 
-      {/* ✅ 하단 고정 버튼: 화면 맨 아래 중앙 고정 */}
+      {/* 하단 고정 버튼: 화면 맨 아래 중앙 고정 */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
         <Button
           size="lg"

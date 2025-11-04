@@ -7,29 +7,28 @@ import { toISODate } from '@/app/lib/period'
 
 type Props = {
   currentDate: Date
-  // 날짜 클릭 시 일일기록 페이지로 이동시키는 콜백(부모에서 내려줌)
+  // 날짜 클릭 시 일일기록 페이지로 이동시키는 콜백
   onOpenDailyRecord?: (date: Date) => void
+  onSummaryChange?: (s: { activeDays: number; completionRate: number }) => void
 }
 
-/** 한 달 동안의 저장 여부 맵: { 'YYYY-MM-DD': true/false } */
+/* 한 달 동안의 저장 여부 맵: { 'YYYY-MM-DD': true/false } */
 type RecordMap = Record<string, boolean>
 
-export default function CalendarHeatmap({ currentDate, onOpenDailyRecord }: Props) {
+export default function CalendarHeatmap({ currentDate, onOpenDailyRecord, onSummaryChange }: Props) {
   const [recordMap, setRecordMap] = useState<RecordMap>({})
   const year = currentDate.getFullYear()
-  const month = currentDate.getMonth()
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-   const firstDay = new Date(year, month, 1).getDay()
-  /** 이 달의 각 날짜 ISO를 미리 계산 */
-  const monthDatesISO = useMemo(() => {
-    const arr: string[] = []
-    for (let d = 1; d <= daysInMonth; d++) {
-      arr.push(toISODate(new Date(year, month, d)))
-    }
-    return arr
-  }, [year, month, daysInMonth])
+  const monthIdx = currentDate.getMonth()
+  const daysInMonth = new Date(year, monthIdx + 1, 0).getDate()
+   const firstDay = new Date(year, monthIdx, 1).getDay()
+  /* 이 달의 각 날짜 ISO를 미리 계산 */
+    const monthDatesISO = useMemo(() => {
+    return Array.from({ length: daysInMonth }, (_, i) =>
+      toISODate(new Date(year, monthIdx, i + 1)),
+    )
+  }, [year, monthIdx, daysInMonth])
 
-  /** ✅ 실제 저장 여부를 가져와서 recordMap 구성 */
+  /* 실제 저장 여부를 가져와서 recordMap 구성 */
   useEffect(() => {
     let alive = true
     ;(async () => {
@@ -38,20 +37,24 @@ export default function CalendarHeatmap({ currentDate, onOpenDailyRecord }: Prop
           monthDatesISO.map(async (iso) => {
             const rec = await getRecord(iso) // DailyRecord | null
             return [iso, !!rec?.content] as const
-          })
+           }),
         )
         if (!alive) return
-        setRecordMap(Object.fromEntries(entries))
+        const map = Object.fromEntries(entries) as RecordMap
+        setRecordMap(map)
+
+        // ✅ 요약 계산해서 부모로 전달
+        const active = Object.values(map).filter(Boolean).length
+        const rate = daysInMonth > 0 ? (active / daysInMonth) * 100 : 0
+        onSummaryChange?.({ activeDays: active, completionRate: rate })
       } catch (e) {
         console.error('load month records error', e)
       }
     })()
-    return () => {
-      alive = false
-    }
-  }, [monthDatesISO])
+    return () => { alive = false }
+  }, [monthDatesISO, daysInMonth, onSummaryChange])
 
-  /** 🟦=저장함 / 🔴=저장안함 */
+  /* 🟦=저장함 / 🔴=저장안함 */
   const getDotColor = (dateISO: string) => {
     const has = recordMap[dateISO]
     return has ? 'text-sky-500' : 'text-red-500'
@@ -83,14 +86,10 @@ export default function CalendarHeatmap({ currentDate, onOpenDailyRecord }: Prop
       {/* 날짜 박스 그리드 */}
       <div className="grid grid-cols-7 gap-3">
         {/* 앞쪽 비어있는 칸 (1일 요일 오프셋) */}
-        {Array.from({ length: firstDay }).map((_, i) => (
-          <div key={`empty-${i}`} />
-        ))}
-
-        {/* 날짜들 */}
-        {Array.from({ length: daysInMonth }, (_, i) => {
-          const day = i + 1
-          const dateObj = new Date(year, month, day)
+        {Array.from({ length: firstDay }).map((_, i) => <div key={`empty-${i}`} />)}
+        {Array.from({ length: daysInMonth }, (_, idx) => {
+          const day = idx + 1
+          const dateObj = new Date(year, monthIdx, day)
           const iso = toISODate(dateObj)
           const isToday = iso === todayISO
 
