@@ -53,12 +53,13 @@ if (!bootstrapped) return null
  case 'signup':
   return (
     <SignupPage
-      onSignup={async ({ name, email, password }) => {
-        await signup(name, email, password)  // 서버에 유저 생성
+       onSignup={(data) => {
+        // 필요하면 data.marketing 저장:
+        if (data.marketing) localStorage.setItem('marketingConsent', 'true')
         // ✅ 가입만 하고 자동 로그인은 하지 않음
         // 여기서 안내만 띄우고 로그인 화면으로 보내기
         alert('회원가입이 완료되었습니다. 로그인해 주세요.')
-        setCurrentPage('login')
+        setCurrentPage('onboarding')  // 가입 후 온보딩으로 이동
       }}
       onSwitchToLogin={() => setCurrentPage('login')}
     />

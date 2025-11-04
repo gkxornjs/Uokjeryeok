@@ -3,7 +3,7 @@ import express from 'express'
 import cors from 'cors'
 import morgan from 'morgan'
 import { PrismaClient } from '@prisma/client'
-
+import onboardingRouterFactory from './routes/onboarding'
 import authRouter from './routes/auth'
 import recordsRouter from './routes/records'
 import statsRouter from './routes/stats'
@@ -35,7 +35,7 @@ app.use('/stats', statsRouter(prisma))
 app.use('/onboarding', onboardingRouter(prisma))
 app.post('/auth/__ping', (req,res)=>res.json({ok:true}))
 app.use((req, res) => res.status(404).json({ message: 'Not Found' }))
-
+app.use('/onboarding', onboardingRouterFactory(prisma))
 
 app.listen(PORT, HOST, () => {
   console.log(`[backend] listening on http://${HOST}:${PORT}`)

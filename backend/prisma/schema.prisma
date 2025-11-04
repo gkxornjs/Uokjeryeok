@@ -14,21 +14,21 @@ model User {
   name       String
   password   String
   records    Record[]
-  onboarding Onboarding?      // 1:1 관계
+  onboarding Onboarding? // 1:1 관계
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 }
 
 model Onboarding {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  gender       String?      // 선택 입력이면 ? 로
-  ageGroup     String?
-  occupation   String?
-  primaryGoals String[]     // ["study","health",...]
-  completed    Boolean  @default(false)
-
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  gender           String?
+  ageGroup         String?
+  occupation       String?
+  primaryGoals     String[]
+  marketingConsent Boolean  @default(false) // ✅ 반드시 존재해야 함
+  completed        Boolean  @default(false)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Record {
@@ -39,7 +39,7 @@ model Record {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, date])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, date])
 }

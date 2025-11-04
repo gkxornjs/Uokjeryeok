@@ -4,11 +4,13 @@ import { useState } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Card } from '../ui/card'
+import toast from 'react-hot-toast'
+import { signup, login } from '@/app/lib/auth'
 import { Checkbox } from '../ui/checkbox'
 import { Eye, EyeOff, Check, User, Mail, Lock, Sparkles, UserPlus, Shield, Heart } from 'lucide-react'
 
 interface SignupPageProps {
-  onSignup: (userData: SignupData) => void
+   onSignup: (userData: SignupData & { marketing?: boolean }) => void
   onSwitchToLogin: () => void
 }
 
@@ -57,19 +59,35 @@ export function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!isFormValid) return
+    if (!isFormValid || isLoading) return
 
     setIsLoading(true)
     // 실제 가입 API 연동 위치
-    setTimeout(() => {
-      onSignup({
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-      })
+    try {
+      const name = formData.name.trim()
+      const email = formData.email.trim().toLowerCase()
+      const password = formData.password
+
+      // 1) 가입
+      await signup(name, email, password)              // { id } 반환 가정
+
+      // 2) 자동 로그인 (토큰 저장)
+      await login(email, password)                     // { token, user } 반환 가정
+
+      toast.success('회원가입이 완료되었습니다. 기본 정보를 이어서 입력해 주세요!')
+      // 3) 온보딩 페이지로 이동하도록 부모에 알림
+      onSignup({ name, email, password, marketing: agreements.marketing })
+      //  - parent(Page.tsx)에서 onSignup={() => setCurrentPage('onboarding')} 로 구현되어 있어야 함
+      //  - marketing 동의는 localStorage 등에 저장 후 온보딩에서 함께 saveOnboarding 해도 됨
+    } catch (e) {
+      console.error(e)
+      toast.error( '회원가입이 실패하였거나 이미 가입된 이메일입니다.')
+    } finally {
       setIsLoading(false)
-    }, 1500)
+    }
   }
+
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-purple-50 flex items-center justify-center p-4 relative overflow-hidden">

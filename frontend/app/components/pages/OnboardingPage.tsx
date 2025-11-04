@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Card } from '../ui/card'
+import { toast } from 'react-hot-toast'
 import { saveOnboarding } from '../../lib/onboarding'
 //import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
@@ -124,10 +125,29 @@ export function OnboardingPage({ onComplete, userName }: OnboardingPageProps) {
   const handlePrev = () => currentStep > 1 && setCurrentStep((s) => s - 1)
   
 const handleComplete = async () => {
-  // 1) 서버에 저장 (completed 플래그 포함)
-  await saveOnboarding({ ...formData, completed: true })
-  // 2) 기존 라우팅 로직 호출 (settings 또는 dashboard로 이동)
-  onComplete(formData)
+  try {
+    // 마케팅 동의 (회원가입 단계에서 저장해둔 값)
+    const consent = localStorage.getItem('marketingConsent') === 'true'
+
+    // ✅ 반드시 async 함수 내부에서 await 사용
+    await saveOnboarding({
+      gender: formData.gender || undefined,
+      ageGroup: formData.ageGroup || undefined,
+      occupation: formData.occupation || undefined,
+      primaryGoals: formData.primaryGoals,
+      marketingConsent: consent,   // ← 백엔드 스키마에 있으면 함께 저장
+      completed: true,             // ← 온보딩 완료 플래그(백엔드에 구현했을 경우)
+    })
+
+    localStorage.removeItem('marketingConsent')
+
+    toast.success('저장되었습니다.')
+    // 설정 저장 후 다음 라우팅(대시보드 등)
+    onComplete(formData)
+  } catch (e) {
+    console.error(e)
+    toast.error('저장에 실패했습니다.')
+  }
 }
   const handleGoalToggle = (goalId: string, checked: boolean) => {
     setFormData((prev) => ({
@@ -136,6 +156,8 @@ const handleComplete = async () => {
     }))
   }
 
+
+  
   const isStepValid = () => {
     if (currentStep === 1) return !!(formData.gender && formData.ageGroup && formData.occupation)
     if (currentStep === 2) return formData.primaryGoals.length > 0
