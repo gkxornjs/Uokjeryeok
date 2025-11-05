@@ -213,10 +213,19 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
             {/* Time blocks */}
             {blocks.map((block) => (
               <div
-                key={block.id}
-                className="absolute rounded px-2 py-1 cursor-pointer hover:opacity-90 transition-opacity group"
-                style={getBlockStyle(block)}
-              >
+                 key={block.id}
+    className="
+      absolute rounded bg-blue-600/90 text-white shadow-sm
+      flex flex-col items-center justify-center text-center
+      px-3 py-2"
+    style={getBlockStyle(block)}
+  >
+    <div className="text-[13px] font-medium opacity-95">
+      {formatTime(block.startTime)}–{formatTime(block.endTime)}
+    </div>
+    <div className="text-[15px] font-semibold leading-snug break-words">
+      {block.title}
+    </div>
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="text-white text-xs">

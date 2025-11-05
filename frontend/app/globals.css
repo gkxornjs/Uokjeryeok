@@ -119,3 +119,28 @@
   button { @apply text-base font-medium; }
   input  { @apply text-base; }
 }
+
+.fc .fc-timegrid-event .fc-event-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;   /* 텍스트 수직 중앙 */
+  text-align: center;        /* 수평 중앙 */
+  padding: 4px 6px;
+}
+
+/* 시간/제목 크기 조정 */
+.fc .fc-timegrid-event .fc-event-time {
+  display: block;
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.fc .fc-timegrid-event .fc-event-title {
+  display: block;
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 700;
+}
