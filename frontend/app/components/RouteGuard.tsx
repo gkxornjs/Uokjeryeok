@@ -25,6 +25,7 @@ export default function RouteGuard({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     if (!mounted) return
+       if (pathname === '/404' || pathname === '/_not-found') return
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
 
     const isPublic = PUBLIC.includes(pathname)

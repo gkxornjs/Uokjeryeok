@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import './globals.css'
 import RouteGuard from '@/app/components/RouteGuard'
 import { Toaster } from 'react-hot-toast'
+import { Suspense } from 'react'   
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,9 +28,11 @@ export default function RootLayout({
    return (
     <html lang="ko">
       <body>
+        <Suspense fallback={null}>
         <RouteGuard>
           {children}
         </RouteGuard>
+        </Suspense>
         <Toaster position="bottom-center" />
       </body>
     </html>
