@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken'
 import { z } from 'zod'
 import { authMiddleware } from '../middlewares/auth'
 
+
 const signupSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
@@ -65,3 +66,4 @@ export default function authRouter(prisma: PrismaClient) {
 
   return router
 }
+

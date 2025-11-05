@@ -211,62 +211,83 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
             {isSelecting && <div className="absolute border-2 border-primary border-dashed rounded" style={getSelectionStyle()} />}
 
             {/* Time blocks */}
-            {blocks.map((block) => (
-              <div
-              key={block.id}
-    
+            {blocks.map((block) => {
+  const timeText = `${formatTime(block.startTime)}–${formatTime(block.endTime)}`
+  const isEditing = editingBlock === block.id
+  return (
+    <div
+      key={block.id}
+      className="group absolute rounded text-white shadow-sm"
+      style={getBlockStyle(block)}
+      onDoubleClick={(e) => {
+        e.stopPropagation()
+        setEditingBlock(block.id)
+      }}
+    >
+      {/* 삭제 버튼*/}
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          deleteBlock(block.id)
+        }}
+        className="
+          absolute right-1 top-1 z-20 h-6 w-6 rounded-full bg-black/30 text-white
+          flex items-center justify-center text-sm
+          opacity-0 group-hover:opacity-100 transition-opacity
+        "
+        aria-label="삭제"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+
+      {/* 중앙 정렬 영역*/}
+      <div
+        className="
+          relative z-10 h-full w-full
+          flex flex-col items-center justify-center text-center
+          px-3
+        "
+      >
+        {/* 시간 */}
+        <div className="text-[13px] font-semibold opacity-95">
+          {timeText}
+        </div>
+
+        {/* 제목 (수정 가능) */}
+        {isEditing ? (
+          <input
+            type="text"
+            value={block.title}
+            onChange={(e) => updateBlockTitle(block.id, e.target.value)}
+            onBlur={() => setEditingBlock(null)}
+            onKeyDown={(e) => e.key === 'Enter' && setEditingBlock(null)}
             className="
-             absolute rounded bg-blue-600/90 text-white shadow-sm
-            flex flex-col items-center justify-center text-center
-            px-3 py-2"
-            style={getBlockStyle(block)}                 // 높이는 기존 계산값 사용
-            >
-    <div className="text-[13px] font-medium opacity-95">
-      {formatTime(block.startTime)}–{formatTime(block.endTime)}
+              mt-1 w-4/5 bg-transparent text-[15px] font-bold text-white
+              border-b border-white/70 focus:outline-none
+            "
+            autoFocus
+          />
+        ) : (
+          <div
+            className="mt-1 text-[15px] font-bold leading-snug break-words"
+            // 더블클릭으로 수정 모드
+            onDoubleClick={(e) => {
+              e.stopPropagation()
+              setEditingBlock(block.id)
+            }}
+          >
+            {block.title}
+          </div>
+        )}
+
+        {/* (선택) 메모가 있다면 출력하고 싶을 때 */}
+        {/* {block.memo && (
+          <div className="mt-1 text-[13px] opacity-95">{block.memo}</div>
+        )} */}
+      </div>
     </div>
-    <div className="text-[15px] font-semibold leading-snug break-words">
-      {block.title}
-    </div>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-white text-xs">
-                      {formatTime(block.startTime)}-{formatTime(block.endTime)}
-                    </div>
-                    {editingBlock === block.id ? (
-                      <input
-                        type="text"
-                        value={block.title}
-                        onChange={(e) => updateBlockTitle(block.id, e.target.value)}
-                        onBlur={() => setEditingBlock(null)}
-                        onKeyDown={(e) => e.key === 'Enter' && setEditingBlock(null)}
-                        className="w-full bg-transparent text-white text-sm font-medium placeholder-white/70 border-none outline-none mt-1"
-                        autoFocus
-                      />
-                    ) : (
-                      <div
-                        className="text-white text-sm font-medium truncate cursor-text mt-1"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setEditingBlock(block.id)
-                        }}
-                      >
-                        {block.title}
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      deleteBlock(block.id)
-                    }}
-                    className="w-4 h-4 bg-black/20 hover:bg-black/40 rounded text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center ml-1 flex-shrink-0"
-                    aria-label="삭제"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            ))}
+  )
+})}
           </div>
         </div>
       </div>

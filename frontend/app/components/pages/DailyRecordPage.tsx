@@ -12,6 +12,7 @@ import { HabitsCard } from '../HabitsCard'
 import { LeftColumnTimeline } from '../LeftColumnTimeline'
 import { saveRecord } from '@/app/lib/records'
 import { getRecord } from '@/app/lib/records'
+import MottoConfetti from '@/app/components/MottoConfetti'
 import type {
   RecordContent,
   TimeBlock as RecordTimeBlock,
@@ -58,7 +59,21 @@ export function DailyRecordPage({ currentDate, onGoDashboard }: DailyRecordPageP
 
   // 상단 입력들
   const [dailyMotto, setDailyMotto] = useState('')
+  const [celebrate, setCelebrate] = useState(false)
   const [newQuickNote, setNewQuickNote] = useState('')
+
+  const handleSaveMotto = async () => {
+    if (!dailyMotto.trim()) return
+    try {
+      // TODO: 실제 저장 로직 (API 호출)
+      // await saveMotto(motto)
+      // toast.success('저장되었습니다!')
+      setCelebrate(true)                    // 🎉 트리거
+      setTimeout(() => setCelebrate(false), 100) // 다음 입력에서도 다시 쏠 수 있게 리셋
+    } catch (e) {
+      // toast.error('저장에 실패했습니다.')
+    }
+  }
 
   // 빠른 메모
   const [quickNotes, setQuickNotes] = useState<Note[]>([
@@ -236,11 +251,18 @@ useEffect(() => {
                 <div className="flex-1">
                   <h3 className="font-semibold text-blue-900 mb-2">오늘의 모토 / 다짐</h3>
                   <Input
+                    id="motto-input" 
                     value={dailyMotto}
                     onChange={(e) => setDailyMotto(e.target.value)}
                     placeholder="오늘을 어떻게 살고 싶은가요?"
                     className={`w-full ${fieldClass}`}
                   />
+                  <button
+            onClick={handleSaveMotto}
+            className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
+          >
+            저장
+          </button>
                 </div>
               </div>
             </CardContent>
@@ -438,7 +460,7 @@ useEffect(() => {
                       value={inspiration}
                       onChange={(e) => setInspiration(e.target.value)}
                       placeholder="오늘 얻은 영감, 인사이트, 좋은 문구 등을 기록해보세요..."
-                      className="min-h-[100px] resize-none"
+                      className={textareaClass}
                     />
                   </CardContent>
                 </CollapsibleContent>
