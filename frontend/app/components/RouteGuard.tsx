@@ -37,7 +37,7 @@ export default function RouteGuard({ children }: { children: React.ReactNode }) 
     if (token) {
       // 로그인 되어 있는데 공개 페이지에 있으면 → 대시보드로
       if (isPublic) {
-        router.replace('/dashboard')
+        router.replace('/monthly-plan')
       }
     } else {
       // 로그인 안 됐는데 보호 페이지 접근 시 → 로그인
