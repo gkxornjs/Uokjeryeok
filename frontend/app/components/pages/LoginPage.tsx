@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Card } from '../ui/card'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock, Sparkles, Target, LogIn } from 'lucide-react'
 
 interface LoginPageProps {
@@ -16,6 +17,17 @@ export function LoginPage({ onLogin, onSwitchToSignup }: LoginPageProps) {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const next = searchParams.get('next')
+
+   const handleLogin = async () => {
+    // 1) 로그인 API 호출 -> token 저장
+    await onLogin(email, password) // localStorage.setItem('token', ...)
+
+    // 2) 이동
+    router.replace(next || '/monthly-plan') // ✅ 로그인 이후에 캘린더 페이지로
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

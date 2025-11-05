@@ -1,51 +1,46 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
-/*
-  로그인 토큰(localStorage) 기반 라우팅 가드
-  - 토큰이 있으면: 공개페이지(login/signup/onboarding/root) 접근 시 dashboard로 보냄
-  - 토큰이 없으면: 보호페이지(dashboard/daily/weekly/monthly/yearly/settings) 접근 시 login으로 보냄
- */
 export default function RouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [mounted, setMounted] = useState(false)
 
-  // 필요에 맞춰 URL 접두사/경로를 조정하세요.
+  // 공개 페이지(항상 접근 허용)
   const PUBLIC = useMemo(
     () => ['/', '/login', '/signup', '/onboarding'],
     []
   )
+
+  // 보호 페이지(로그인 필요). 프로젝트 라우트에 맞게 추가/수정
   const PROTECTED_PREFIX = useMemo(
-    () => ['/dashboard', '/daily', '/weekly', '/monthly', '/yearly', '/settings'],
+    () => ['/monthly-plan', '/daily-record', '/weekly-plan', '/yearly-plan', '/settings'],
     []
   )
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  useEffect(() => setMounted(true), [])
 
   useEffect(() => {
     if (!mounted) return
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
 
     const isPublic = PUBLIC.includes(pathname)
-    const isProtected = PROTECTED_PREFIX.some((p) => pathname === p || pathname.startsWith(p + '/'))
+    const isProtected = PROTECTED_PREFIX.some(p => pathname === p || pathname.startsWith(p + '/'))
 
-    if (token) {
-      // 로그인 되어 있는데 공개 페이지에 있으면 → 대시보드로
-      if (isPublic) {
-        router.replace('/monthly-plan')
-      }
-    } else {
-      // 로그인 안 됐는데 보호 페이지 접근 시 → 로그인
-      if (isProtected) {
-        router.replace('/login')
-      }
+    if (!token && isProtected) {
+      // 로그인 필요: 로그인 페이지로 보낼 때 현재 경로를 next 파라미터로 붙인다.
+      const next = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : '')
+      router.replace(`/login?next=${encodeURIComponent(next)}`)
+      return
     }
-  }, [mounted, pathname, router, PUBLIC, PROTECTED_PREFIX])
+    // 특정 홈으로 보내고 싶다면 아래 주석을 해제하세요.
+    // if (token && isPublic) {
+    //   router.replace('/monthly-plan') // 실제 홈/대시보드 경로
+    // }
+  }, [mounted, pathname, searchParams, router, PUBLIC, PROTECTED_PREFIX])
 
   return <>{children}</>
 }
