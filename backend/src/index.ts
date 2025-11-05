@@ -9,6 +9,8 @@ import recordsRouter from './routes/records'
 import statsRouter from './routes/stats'
 import onboardingRouter from './routes/onboarding'
 
+
+console.log('[ENV] DATABASE_URL =', process.env.DATABASE_URL?.replace(/:\/\/.*@/,'://***@'));
 const app = express()
 const prisma = new PrismaClient()
 
