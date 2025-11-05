@@ -256,7 +256,7 @@ useEffect(() => {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex space-x-2">
-                <Input
+                <Input id="quick-note-input"
                   value={newQuickNote}
                   onChange={(e) => setNewQuickNote(e.target.value)}
                   onKeyDown={handleQuickNoteKeyDown}

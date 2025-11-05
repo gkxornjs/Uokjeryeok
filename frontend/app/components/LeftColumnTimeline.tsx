@@ -213,13 +213,14 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
             {/* Time blocks */}
             {blocks.map((block) => (
               <div
-                 key={block.id}
-    className="
-      absolute rounded bg-blue-600/90 text-white shadow-sm
-      flex flex-col items-center justify-center text-center
-      px-3 py-2"
-    style={getBlockStyle(block)}
-  >
+              key={block.id}
+    
+            className="
+             absolute rounded bg-blue-600/90 text-white shadow-sm
+            flex flex-col items-center justify-center text-center
+            px-3 py-2"
+            style={getBlockStyle(block)}                 // 높이는 기존 계산값 사용
+            >
     <div className="text-[13px] font-medium opacity-95">
       {formatTime(block.startTime)}–{formatTime(block.endTime)}
     </div>

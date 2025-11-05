@@ -144,3 +144,13 @@
   line-height: 1.2;
   font-weight: 700;
 }
+#quick-note-input {
+  border: 1px solid rgb(209 213 219) !important; /* gray-300 */
+  border-radius: 0.75rem;                        /* rounded-xl */
+  background: #fff;
+}
+#quick-note-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.25);   /* ring-blue-200 */
+  border-color: rgb(59 130 246);                 /* blue-500 */
+}
