@@ -1,5 +1,8 @@
+'use client'
+
 import { ChevronLeft, ChevronRight, Bell, User, Search } from 'lucide-react';
 import { Button } from './ui/button';
+import BackButton from '@/app/components/BackButton'
 
 
 
@@ -85,7 +88,8 @@ const goToToday = () => {
   return (
     <header className="h-16 bg-background border-b border-border px-6 flex items-center justify-between">
       {/* Left side - Date Navigation */}
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center gap-3">
+        <BackButton /> {/* ← 추가된 뒤로가기 버튼 */}
         <Button
           variant="outline"
           size="sm"
