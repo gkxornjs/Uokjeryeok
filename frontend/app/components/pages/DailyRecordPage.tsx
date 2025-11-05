@@ -42,6 +42,15 @@ interface TimeBlock {
   color: string
 }
 
+const fieldClass =
+  "rounded-xl border border-gray-300 bg-white/90 h-11 px-3 " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 " +
+  "focus-visible:border-blue-500 placeholder:text-gray-400";
+const textareaClass =
+  "min-h-[140px] rounded-xl border border-gray-300 bg-white/90 p-3 " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 " +
+  "focus-visible:border-blue-500 placeholder:text-gray-400";
+
 export function DailyRecordPage({ currentDate, onGoDashboard }: DailyRecordPageProps) {
   // 날짜 변경 추적
   const prevDateRef = useRef<Date | null>(null)
@@ -230,7 +239,7 @@ useEffect(() => {
                     value={dailyMotto}
                     onChange={(e) => setDailyMotto(e.target.value)}
                     placeholder="오늘을 어떻게 살고 싶은가요?"
-                    className="bg-white border-blue-200 focus:border-blue-400"
+                    className={`w-full ${fieldClass}`}
                   />
                 </div>
               </div>
@@ -252,7 +261,7 @@ useEffect(() => {
                   onChange={(e) => setNewQuickNote(e.target.value)}
                   onKeyDown={handleQuickNoteKeyDown}
                   placeholder="빠른 메모 입력... (Enter로 추가)"
-                  className="flex-1"
+                  className={fieldClass}
                 />
                 <Button size="sm" onClick={addQuickNote} disabled={!newQuickNote.trim()}>
                   <Plus className="w-4 h-4" />
@@ -357,7 +366,7 @@ useEffect(() => {
                       value={diary}
                       onChange={(e) => setDiary(e.target.value)}
                       placeholder="오늘 하루 있었던 일들을 자유롭게 기록해보세요..."
-                      className="min-h-[120px] resize-none"
+                      className={textareaClass}
                     />
                   </CardContent>
                 </CollapsibleContent>
@@ -381,7 +390,7 @@ useEffect(() => {
                       value={praise}
                       onChange={(e) => setPraise(e.target.value)}
                       placeholder="오늘 잘한 점이나 스스로를 칭찬하고 싶은 부분을 적어보세요..."
-                      className="min-h-[80px] resize-none"
+                      className={textareaClass}
                     />
                   </CardContent>
                 </CollapsibleContent>
@@ -405,7 +414,7 @@ useEffect(() => {
                       value={reflection}
                       onChange={(e) => setReflection(e.target.value)}
                       placeholder="오늘을 돌아보며 개선할 점이나 배운 점을 적어보세요..."
-                      className="min-h-[100px] resize-none"
+                      className={textareaClass}
                     />
                   </CardContent>
                 </CollapsibleContent>
