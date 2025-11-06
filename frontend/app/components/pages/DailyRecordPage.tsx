@@ -265,6 +265,7 @@ useEffect(() => {
           </button>
                 </div>
               </div>
+                <MottoConfetti fire={celebrate} targetId="motto-input" />
             </CardContent>
           </Card>
 

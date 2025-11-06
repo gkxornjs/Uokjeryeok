@@ -16,36 +16,41 @@ export default function MottoConfetti({
   targetId?: string
   colors?: string[]
 }) {
-  const once = useRef(false)
+const used = useRef(false)
 
   useEffect(() => {
-    if (!fire || once.current) return
-    once.current = true
+    if (!fire || used.current) return
+    used.current = true
 
-    // target 엘리먼트 중심 기준으로 origin 계산
-    const rect = targetId ? document.getElementById(targetId)?.getBoundingClientRect() : undefined
-    const origin = rect
-      ? {
-          x: (rect.left + rect.width / 2) / window.innerWidth,
-          y: Math.max(0.1, (rect.top + 10) / window.innerHeight),
+    // 동적 import로 SSR 문제 방지
+    import('canvas-confetti').then(({ default: confetti }) => {
+      let origin = { x: 0.5, y: 0.25 }
+      if (targetId) {
+        const el = document.getElementById(targetId)
+        if (el) {
+          const r = el.getBoundingClientRect()
+          origin = {
+            x: (r.left + r.width / 2) / window.innerWidth,
+            y: Math.max(0.1, (r.top + 10) / window.innerHeight),
+          }
         }
-      : { x: 0.5, y: 0.25 }
+      }
 
-    const end = Date.now() + 900
-    ;(function frame() {
-      confetti({
-        particleCount: 3,
-        startVelocity: 32,
-        spread: 55,
-        ticks: 60,
-        origin,
-        colors,
-      })
-      if (Date.now() < end) requestAnimationFrame(frame)
-    })()
+      const end = Date.now() + 900
+      ;(function frame() {
+        confetti({
+          particleCount: 4,
+          startVelocity: 32,
+          spread: 60,
+          ticks: 60,
+          origin,
+          colors,
+        })
+        if (Date.now() < end) requestAnimationFrame(frame)
+      })()
+    })
 
-    // 한 번만 터지도록 리셋
-    const t = setTimeout(() => (once.current = false), 1200)
+    const t = setTimeout(() => (used.current = false), 1200)
     return () => clearTimeout(t)
   }, [fire, targetId, colors])
 

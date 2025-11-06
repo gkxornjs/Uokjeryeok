@@ -214,17 +214,18 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
             {blocks.map((block) => {
   const timeText = `${formatTime(block.startTime)}–${formatTime(block.endTime)}`
   const isEditing = editingBlock === block.id
+
   return (
     <div
       key={block.id}
       className="group absolute rounded text-white shadow-sm"
-      style={getBlockStyle(block)}
+      style={getBlockStyle(block)}   // 기존 높이/위치는 그대로
       onDoubleClick={(e) => {
         e.stopPropagation()
         setEditingBlock(block.id)
       }}
     >
-      {/* 삭제 버튼*/}
+      {/* 삭제 버튼 */}
       <button
         onClick={(e) => {
           e.stopPropagation()
@@ -240,7 +241,7 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
         <X className="w-3.5 h-3.5" />
       </button>
 
-      {/* 중앙 정렬 영역*/}
+      {/* 중앙 컨텐츠 - 기존 flex items-start... 영역은 완전히 제거합니다 */}
       <div
         className="
           relative z-10 h-full w-full
@@ -253,7 +254,7 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
           {timeText}
         </div>
 
-        {/* 제목 (수정 가능) */}
+        {/* 제목 (더블클릭으로 수정) */}
         {isEditing ? (
           <input
             type="text"
@@ -270,7 +271,6 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
         ) : (
           <div
             className="mt-1 text-[15px] font-bold leading-snug break-words"
-            // 더블클릭으로 수정 모드
             onDoubleClick={(e) => {
               e.stopPropagation()
               setEditingBlock(block.id)
