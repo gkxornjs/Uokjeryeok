@@ -77,7 +77,6 @@ export function TimeBlockModal({ block, isOpen, onClose, onSave, onAddToDiary }:
         
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>{formatTime(block.startTime)} - {formatTime(block.endTime)}</span>
             <div 
               className="w-3 h-3 rounded" 
               style={{ backgroundColor: block.color }}
