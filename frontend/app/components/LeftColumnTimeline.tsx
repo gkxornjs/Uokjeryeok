@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useMemo  } from 'react'
 import { Clock, X } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Button } from './ui/button'
@@ -153,31 +153,44 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
   const makeKey = (b: { startTime: number; endTime: number; title: string }) =>
     `${b.startTime}-${b.endTime}-${b.title.trim()}`
 
+  const keyOf = (b: { startTime:number; endTime:number; title:string }) =>
+    `${b.startTime}|${b.endTime}|${b.title.trim().toLowerCase()}`
+  const uniqueBlocks = useMemo(() => {
+  const seen = new Set<string>()
+  return blocks.filter((b) => {
+    const k = keyOf(b)
+    if (seen.has(k)) return false
+    seen.add(k)
+    return true
+  })
+}, [blocks])
+
   // ✅ 동일 블록이 이미 있으면 추가하지 않음
   const addBlockOnce = (newBlock: TimeBlock) => {
-    const exists = blocks.some((b) => makeKey(b) === makeKey(newBlock))
-    if (exists) return
-    onBlocksChange([...blocks, newBlock])
-  }
+  const exists = uniqueBlocks.some((b) => keyOf(b) === keyOf(newBlock))
+  if (exists) return
+  onBlocksChange([...uniqueBlocks, newBlock])
+}
 
-  const handleCreateBlock = () => {
-    if (!pendingBlock || !newBlockTitle.trim()) return
-    if (creatingRef.current) return
-    creatingRef.current = true
-    try {
-      const newBlock: TimeBlock = {
-        id: (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`),
-        startTime: pendingBlock.startTime,
-        endTime: pendingBlock.endTime,
-        title: newBlockTitle.trim(),
-        color: COLORS[blocks.length % COLORS.length],
-      }
-      addBlockOnce(newBlock) // ✅ 여기만 통해서 추가
-      handleCloseModal()
-    } finally {
-      creatingRef.current = false
+
+ const handleCreateBlock = () => {
+  if (!pendingBlock || !newBlockTitle.trim()) return
+  if (creatingRef.current) return
+  creatingRef.current = true
+  try {
+    const newBlock: TimeBlock = {
+      id: (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`),
+      startTime: pendingBlock.startTime,
+      endTime: pendingBlock.endTime,
+      title: newBlockTitle.trim(),
+      color: COLORS[uniqueBlocks.length % COLORS.length],
     }
+    addBlockOnce(newBlock)
+    handleCloseModal()
+  } finally {
+    creatingRef.current = false
   }
+}
 
   const handleCloseModal = () => {
     setShowCreateModal(false)
@@ -241,7 +254,7 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
             )}
 
             {/* Time blocks */}
-            {blocks.map((block) => {
+            {uniqueBlocks.map((block) => {
               const timeText = `${formatTime(block.startTime)}–${formatTime(block.endTime)}`
               const isEditing = editingBlock === block.id
 

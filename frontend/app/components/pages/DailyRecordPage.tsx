@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { Calendar, Save, Target, StickyNote, ArrowUpRight, Plus, X } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -10,18 +10,16 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/colla
 import { ChecklistCard } from '../ChecklistCard'
 import { HabitsCard } from '../HabitsCard'
 import { LeftColumnTimeline } from '../LeftColumnTimeline'
-import { saveRecord } from '@/app/lib/records'
-import { getRecord } from '@/app/lib/records'
+import { saveRecord, getRecord } from '@/app/lib/records'
 import MottoConfetti from '@/app/components/MottoConfetti'
 import type {
   RecordContent,
   TimeBlock as RecordTimeBlock,
   Habit,
   ChecklistItem,
-} from '@/types/records'   // 별칭이 없으면 '../../types/records'
-import { isDailyContent } from '@/types/records';
+} from '@/types/records'
+import { isDailyContent } from '@/types/records'
 import toast from 'react-hot-toast'
-
 
 interface DailyRecordPageProps {
   currentDate: Date
@@ -34,26 +32,37 @@ interface Note {
   timestamp: Date
 }
 
+// ────────────────────────────────────────────────────────────────────────────────
+// 스타일
+const fieldClass =
+  'rounded-xl border border-gray-300 bg-white/90 h-11 px-3 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 ' +
+  'focus-visible:border-blue-500 placeholder:text-gray-400'
 
-interface TimeBlock {
-  id: string
-  startTime: number // minutes from 00:00
-  endTime: number
-  title: string
-  color: string
+const textareaClass =
+  'min-h-[140px] rounded-xl border border-gray-300 bg-white/90 p-3 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 ' +
+  'focus-visible:border-blue-500 placeholder:text-gray-400'
+
+// ────────────────────────────────────────────────────────────────────────────────
+// 유틸
+const toISODate = (d: Date) => {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
 }
 
-const fieldClass =
-  "rounded-xl border border-gray-300 bg-white/90 h-11 px-3 " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 " +
-  "focus-visible:border-blue-500 placeholder:text-gray-400";
-const textareaClass =
-  "min-h-[140px] rounded-xl border border-gray-300 bg-white/90 p-3 " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 " +
-  "focus-visible:border-blue-500 placeholder:text-gray-400";
+const formatDate = (d: Date) => `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`
 
-export function DailyRecordPage({ currentDate, onGoDashboard }: DailyRecordPageProps) {
-  // 날짜 변경 추적
+// 블록 dedup 키 (시작/끝/제목 기준, 대소문자 무시)
+const keyOf = (b: { startTime: number; endTime: number; title: string }) =>
+  `${b.startTime}|${b.endTime}|${b.title.trim().toLowerCase()}`
+
+// ────────────────────────────────────────────────────────────────────────────────
+
+export function DailyRecordPage({ currentDate }: DailyRecordPageProps) {
+  // 날짜 변경 추적 (필요 시 사용)
   const prevDateRef = useRef<Date | null>(null)
   const isInitialRender = useRef(true)
 
@@ -65,13 +74,10 @@ export function DailyRecordPage({ currentDate, onGoDashboard }: DailyRecordPageP
   const handleSaveMotto = async () => {
     if (!dailyMotto.trim()) return
     try {
-      // TODO: 실제 저장 로직 (API 호출)
-      // await saveMotto(motto)
-      // toast.success('저장되었습니다!')
-      setCelebrate(true)                    // 🎉 트리거
-      setTimeout(() => setCelebrate(false), 100) // 다음 입력에서도 다시 쏠 수 있게 리셋
+      setCelebrate(true)
+      setTimeout(() => setCelebrate(false), 100)
     } catch (e) {
-      // toast.error('저장에 실패했습니다.')
+      /* noop */
     }
   }
 
@@ -81,7 +87,7 @@ export function DailyRecordPage({ currentDate, onGoDashboard }: DailyRecordPageP
     { id: '2', text: '내일 회의 준비사항 체크', timestamp: new Date() },
   ])
 
-  // 타임 블록
+  // 타임 블록 (초기 더미)
   const [timeBlocks, setTimeBlocks] = useState<RecordTimeBlock[]>([
     { id: '1', startTime: 540, endTime: 600, title: '프로젝트 회의', color: '#3B82F6' }, // 09:00~10:00
     { id: '2', startTime: 720, endTime: 780, title: '점심 시간', color: '#10B981' }, // 12:00~13:00
@@ -115,75 +121,65 @@ export function DailyRecordPage({ currentDate, onGoDashboard }: DailyRecordPageP
   const [isDiaryOpen, setIsDiaryOpen] = useState(true)
   const [isPraiseOpen, setIsPraiseOpen] = useState(true)
 
-  // 날짜가 바뀌면 데이터 리셋 로직 (습관은 목록 유지/완료여부 초기화, 미완료 체크리스트 carry-over)
- // ✅ 날짜가 바뀌면 서버에서 기록을 불러오고(있으면 채우고), 없으면 초기화/이월
-useEffect(() => {
-  let alive = true;
+  // ── 서버 로드: 날짜가 바뀌면 기록 로드, 없으면 초기화/이월 ─────────────────────────
+  useEffect(() => {
+    let alive = true
+    const load = async () => {
+      try {
+        const dateISO = toISODate(currentDate)
+        const rec = await getRecord(dateISO)
+        if (!alive) return
 
-  const load = async () => {
-    try {
-      const dateISO = toISODate(currentDate); // 당신이 만든 toDate 함수 사용
-      const rec = await getRecord(dateISO);     // getRecord: Promise<DailyRecord | null>
-      if (!alive) return;
-
-      if (rec?.content && isDailyContent(rec.content)) {
-        const c = rec.content; // ✅ any 없이 그대로 사용
-
-        setDailyMotto(c.dailyMotto ?? '');
-        setQuickNotes(
-  (c.quickNotes ?? []).map(n => ({
-    id: n.id,
-    text: n.text,
-    timestamp: new Date(n.timestamp),
-  }))
-);
-        setTimeBlocks((c.timeBlocks ?? []) as RecordTimeBlock[]); // ⬅︎ 타입 단언 한 번만
-        setChecklist(c.checklist ?? []);
-        setHabits(c.habits ?? []);        // ✅ isWeekend 제거
-        setDiary(c.diary ?? '');
-        setPraise(c.praise ?? '');
-        setReflection(c.reflection ?? '');
-        setInspiration(c.inspiration ?? '');
-      } else {
-        // 기록 없음 → 초기화 + 미완료 항목 이월
-        const carried = checklist
-          .filter(it => !it.completed)
-          .map((it, i) => ({ ...it, id: `${Date.now()}-${i}`, completed: false, order: i + 1 }));
-        setDailyMotto('');
-        setNewQuickNote('');
-        setQuickNotes([]);
-        setTimeBlocks([]);                // ⬅︎ 빈 배열
-        setChecklist(carried);
-        setHabits(prev => prev.map(h => ({ ...h, completed: false }))); // ⬅︎ isWeekend 제거
-        setDiary('');
-        setPraise('');
-        setReflection('');
-        setInspiration('');
+        if (rec?.content && isDailyContent(rec.content)) {
+          const c = rec.content
+          setDailyMotto(c.dailyMotto ?? '')
+          setQuickNotes(
+            (c.quickNotes ?? []).map((n) => ({
+              id: n.id,
+              text: n.text,
+              timestamp: new Date(n.timestamp),
+            })),
+          )
+          setTimeBlocks((c.timeBlocks ?? []) as RecordTimeBlock[])
+          setChecklist(c.checklist ?? [])
+          setHabits(c.habits ?? [])
+          setDiary(c.diary ?? '')
+          setPraise(c.praise ?? '')
+          setReflection(c.reflection ?? '')
+          setInspiration(c.inspiration ?? '')
+        } else {
+          // 기록 없음 → 초기화 + 미완료 항목 이월
+          const carried = checklist
+            .filter((it) => !it.completed)
+            .map((it, i) => ({ ...it, id: `${Date.now()}-${i}`, completed: false, order: i + 1 }))
+          setDailyMotto('')
+          setNewQuickNote('')
+          setQuickNotes([])
+          setTimeBlocks([])
+          setChecklist(carried)
+          setHabits((prev) => prev.map((h) => ({ ...h, completed: false })))
+          setDiary('')
+          setPraise('')
+          setReflection('')
+          setInspiration('')
+        }
+      } catch (e) {
+        console.error('load error', e)
       }
-    } catch (e) {
-      console.error('load error', e);
     }
-  };
 
-  load();
-  return () => { alive = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [currentDate]);
+    load()
+    return () => {
+      alive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentDate])
 
-
-  const formatDate = (d: Date) => `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`
-  const toISODate = (d: Date) => {
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const dd = String(d.getDate()).padStart(2, '0')
-    return `${y}-${m}-${dd}`
-  }
-  const dateISO = toISODate(currentDate)
-  // 빠른 메모
+  // ── 메모 추가/이동/삭제 ───────────────────────────────────────────────────────
   const addQuickNote = () => {
     if (!newQuickNote.trim()) return
     const note: Note = { id: Date.now().toString(), text: newQuickNote.trim(), timestamp: new Date() }
-    setQuickNotes([note, ...quickNotes])
+    setQuickNotes((prev) => [note, ...prev])
     setNewQuickNote('')
   }
   const removeQuickNote = (id: string) => setQuickNotes((prev) => prev.filter((n) => n.id !== id))
@@ -193,7 +189,6 @@ useEffect(() => {
     setChecklist((prev) => [...prev, newItem])
     removeQuickNote(note.id)
   }
-
   const handleQuickNoteKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -201,14 +196,40 @@ useEffect(() => {
     }
   }
 
-  // 저장
+  // ── 타임블록: 렌더 전 dedup + setter 래핑으로 저장도 dedup ───────────────────────
+  const uniqueTimeBlocks = useMemo(() => {
+    const seen = new Set<string>()
+    return timeBlocks.filter((b) => {
+      const k = keyOf(b)
+      if (seen.has(k)) return false
+      seen.add(k)
+      return true
+    })
+  }, [timeBlocks])
+
+  const setTimeBlocksUnique = useCallback(
+    (next: RecordTimeBlock[] | ((prev: RecordTimeBlock[]) => RecordTimeBlock[])) => {
+      setTimeBlocks((prev) => {
+        const raw = typeof next === 'function' ? next(prev) : next
+        const seen = new Set<string>()
+        return raw.filter((b) => {
+          const k = keyOf(b)
+          if (seen.has(k)) return false
+          seen.add(k)
+          return true
+        })
+      })
+    },
+    [],
+  )
+
+  // ── 저장 ──────────────────────────────────────────────────────────────────────
   const handleSave = async () => {
     const dateISO = toISODate(currentDate)
-
     const payload: RecordContent = {
       dailyMotto,
       quickNotes: quickNotes.map((n) => ({ id: n.id, text: n.text, timestamp: n.timestamp.toISOString() })),
-      timeBlocks,
+      timeBlocks: uniqueTimeBlocks, // 저장도 dedup된 배열
       checklist,
       habits,
       diary,
@@ -223,10 +244,10 @@ useEffect(() => {
     } catch (e) {
       toast.error('저장에 실패했습니다.')
       console.error('save error', e)
-      // TODO: 토스트/알림
     }
   }
 
+  // ── 렌더 ──────────────────────────────────────────────────────────────────────
   return (
     <div className="relative min-h-screen">
       <main className="p-6 pb-24">
@@ -244,28 +265,28 @@ useEffect(() => {
         {/* 상단 카드 */}
         <div className="space-y-6 mb-6">
           {/* 오늘의 모토 */}
-          <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
+          <Card className="relative bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
             <CardContent className="p-4">
               <div className="flex items-center space-x-3">
                 <Target className="w-5 h-5 text-blue-600" />
-                <div className="flex-1">
+                <div className="flex-1 relative">
                   <h3 className="font-semibold text-blue-900 mb-2">오늘의 모토 / 다짐</h3>
                   <Input
-                    id="motto-input" 
+                    id="motto-input"
                     value={dailyMotto}
                     onChange={(e) => setDailyMotto(e.target.value)}
                     placeholder="오늘을 어떻게 살고 싶은가요?"
                     className={`w-full ${fieldClass}`}
                   />
                   <button
-            onClick={handleSaveMotto}
-            className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
-          >
-            저장
-          </button>
+                    onClick={handleSaveMotto}
+                    className="absolute right-2 top-10 px-3 py-1.5 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
+                  >
+                    저장
+                  </button>
                 </div>
               </div>
-                <MottoConfetti fire={celebrate} targetId="motto-input" />
+              <MottoConfetti fire={celebrate} targetId="motto-input" />
             </CardContent>
           </Card>
 
@@ -279,7 +300,8 @@ useEffect(() => {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex space-x-2">
-                <Input id="quick-note-input"
+                <Input
+                  id="quick-note-input"
                   value={newQuickNote}
                   onChange={(e) => setNewQuickNote(e.target.value)}
                   onKeyDown={handleQuickNoteKeyDown}
@@ -329,7 +351,10 @@ useEffect(() => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* 좌: 타임라인 */}
           <div>
-            <LeftColumnTimeline blocks={timeBlocks} onBlocksChange={setTimeBlocks} />
+            <LeftColumnTimeline
+              blocks={uniqueTimeBlocks}           // ✅ dedup된 것만 렌더
+              onBlocksChange={setTimeBlocksUnique} // ✅ 저장도 dedup
+            />
           </div>
 
           {/* 우: 체크리스트/습관/일기/칭찬/성찰/영감 */}
