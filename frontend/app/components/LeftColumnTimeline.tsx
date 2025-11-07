@@ -216,7 +216,7 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
                   </button>
 
                   {/* 중앙 컨텐츠 — 오직 한 벌만 출력 */}
-                  <div className="tl-inner relative z-10 h-full w-full flex flex-col items-center justify-center text-center px-3">
+                  <div  data-renderer="LeftColumnTimeline@v2" className="tl-inner relative z-10 h-full w-full flex flex-col items-center justify-center text-center px-3">
                     <div className="text-[13px] font-semibold opacity-95">{timeText}</div>
                     {isEditing ? (
                       <input
