@@ -255,6 +255,7 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
 
             {/* Time blocks */}
             {uniqueBlocks.map((block) => {
+              console.log('[TL render]', block.id, block.title, block.startTime, block.endTime);
               const timeText = `${formatTime(block.startTime)}–${formatTime(block.endTime)}`
               const isEditing = editingBlock === block.id
 
