@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { Clock, X } from 'lucide-react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
@@ -36,6 +36,9 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
   const [pendingBlock, setPendingBlock] = useState<{ startTime: number; endTime: number } | null>(null)
 
   const timelineRef = useRef<HTMLDivElement>(null)
+
+  // ⛑️ 이중 제출 가드
+  const creatingRef = useRef(false)
 
   // 30분 간격 48 슬롯
   const timeSlots = Array.from({ length: 48 }, (_, i) => {
@@ -91,6 +94,15 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
     setSelectionEnd(null)
   }
 
+  // 🔧 mouseLeave에서는 생성은 하지 않고 '선택만 취소'
+  const handleMouseLeave = () => {
+    if (isSelecting) {
+      setIsSelecting(false)
+      setSelectionStart(null)
+      setSelectionEnd(null)
+    }
+  }
+
   const formatTime = (minutes: number): string => {
     const hour = Math.floor(minutes / 60)
     const min = minutes % 60
@@ -105,7 +117,7 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
     return {
       top: `${startPercent}%`,
       height: `${heightPercent}%`,
-      backgroundColor: block.color ?? DEFAULT_COLOR, // ✅ 기본색 보완
+      backgroundColor: block.color ?? DEFAULT_COLOR,
       left: '40px',
       right: '8px',
     } as React.CSSProperties
@@ -137,17 +149,33 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
     onBlocksChange(blocks.filter((b) => b.id !== blockId))
   }
 
+  // ✅ 중복 방지용 키: 같은 구간 + 같은 제목
+  const makeKey = (b: { startTime: number; endTime: number; title: string }) =>
+    `${b.startTime}-${b.endTime}-${b.title.trim()}`
+
+  // ✅ 동일 블록이 이미 있으면 추가하지 않음
+  const addBlockOnce = (newBlock: TimeBlock) => {
+    const exists = blocks.some((b) => makeKey(b) === makeKey(newBlock))
+    if (exists) return
+    onBlocksChange([...blocks, newBlock])
+  }
+
   const handleCreateBlock = () => {
-    if (pendingBlock && newBlockTitle.trim()) {
+    if (!pendingBlock || !newBlockTitle.trim()) return
+    if (creatingRef.current) return
+    creatingRef.current = true
+    try {
       const newBlock: TimeBlock = {
-        id: Date.now().toString(),
+        id: (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`),
         startTime: pendingBlock.startTime,
         endTime: pendingBlock.endTime,
         title: newBlockTitle.trim(),
-        color: COLORS[blocks.length % COLORS.length], // ✅ 생성 시 색상 보장
+        color: COLORS[blocks.length % COLORS.length],
       }
-      onBlocksChange([...blocks, newBlock])
+      addBlockOnce(newBlock) // ✅ 여기만 통해서 추가
       handleCloseModal()
+    } finally {
+      creatingRef.current = false
     }
   }
 
@@ -183,7 +211,7 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
+            onMouseLeave={handleMouseLeave}  // ✅ 변경
           >
             {/* Hour labels (00~24) */}
             {Array.from({ length: 25 }, (_, hour) => (
@@ -208,86 +236,78 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
             ))}
 
             {/* Selection preview */}
-            {isSelecting && <div className="absolute border-2 border-primary border-dashed rounded" style={getSelectionStyle()} />}
+            {isSelecting && (
+              <div className="absolute border-2 border-primary border-dashed rounded" style={getSelectionStyle()} />
+            )}
 
             {/* Time blocks */}
             {blocks.map((block) => {
-  const timeText = `${formatTime(block.startTime)}–${formatTime(block.endTime)}`
-  const isEditing = editingBlock === block.id
+              const timeText = `${formatTime(block.startTime)}–${formatTime(block.endTime)}`
+              const isEditing = editingBlock === block.id
 
-  return (
-    <div
-      key={block.id}
-      className="group absolute rounded text-white shadow-sm"
-      style={getBlockStyle(block)}   // 기존 높이/위치는 그대로
-      onDoubleClick={(e) => {
-        e.stopPropagation()
-        setEditingBlock(block.id)
-      }}
-    >
-      {/* 삭제 버튼 */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation()
-          deleteBlock(block.id)
-        }}
-        className="
-          absolute right-1 top-1 z-20 h-6 w-6 rounded-full bg-black/30 text-white
-          flex items-center justify-center text-sm
-          opacity-0 group-hover:opacity-100 transition-opacity
-        "
-        aria-label="삭제"
-      >
-        <X className="w-3.5 h-3.5" />
-      </button>
+              return (
+                <div
+                  key={block.id}
+                  className="group absolute rounded text-white shadow-sm"
+                  style={getBlockStyle(block)}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation()
+                    setEditingBlock(block.id)
+                  }}
+                >
+                  {/* 삭제 버튼 */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      deleteBlock(block.id)
+                    }}
+                    className="
+                      absolute right-1 top-1 z-20 h-6 w-6 rounded-full bg-black/30 text-white
+                      flex items-center justify-center text-sm
+                      opacity-0 group-hover:opacity-100 transition-opacity
+                    "
+                    aria-label="삭제"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
 
-      {/* 중앙 컨텐츠 - 기존 flex items-start... 영역은 완전히 제거합니다 */}
-      <div
-        className="
-          relative z-10 h-full w-full
-          flex flex-col items-center justify-center text-center
-          px-3
-        "
-      >
-        {/* 시간 */}
-        <div className="text-[13px] font-semibold opacity-95">
-          {timeText}
-        </div>
+                  {/* 중앙 컨텐츠 */}
+                  <div
+                    className="
+                      relative z-10 h-full w-full
+                      flex flex-col items-center justify-center text-center
+                      px-3
+                    "
+                  >
+                    {/* 시간 */}
+                    <div className="text-[13px] font-semibold opacity-95">{timeText}</div>
 
-        {/* 제목 (더블클릭으로 수정) */}
-        {isEditing ? (
-          <input
-            type="text"
-            value={block.title}
-            onChange={(e) => updateBlockTitle(block.id, e.target.value)}
-            onBlur={() => setEditingBlock(null)}
-            onKeyDown={(e) => e.key === 'Enter' && setEditingBlock(null)}
-            className="
-              mt-1 w-4/5 bg-transparent text-[15px] font-bold text-white
-              border-b border-white/70 focus:outline-none
-            "
-            autoFocus
-          />
-        ) : (
-          <div
-            className="mt-1 text-[15px] font-bold leading-snug break-words"
-            onDoubleClick={(e) => {
-              e.stopPropagation()
-              setEditingBlock(block.id)
-            }}
-          >
-            {block.title}
-          </div>
-        )}
+                    {/* 제목 (더블클릭으로 수정) */}
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={block.title}
+                        onChange={(e) => updateBlockTitle(block.id, e.target.value)}
+                        onBlur={() => setEditingBlock(null)}
+                        onKeyDown={(e) => e.key === 'Enter' && setEditingBlock(null)}
+                        className="
+                          mt-1 w-4/5 bg-transparent text-[15px] font-bold text-white
+                          border-b border-white/70 focus:outline-none
+                        "
+                        autoFocus
+                      />
+                    ) : (
+                      <div className="mt-1 text-[15px] font-bold leading-snug break-words">{block.title}</div>
+                    )}
 
-        {/* (선택) 메모가 있다면 출력하고 싶을 때 */}
-        {/* {block.memo && (
-          <div className="mt-1 text-[13px] opacity-95">{block.memo}</div>
-        )} */}
-      </div>
-    </div>
-  )
-})}
+                    {/* 메모 출력은 필요 시 주석 해제
+                    {block.memo && (
+                      <div className="mt-1 text-[13px] opacity-95">{block.memo}</div>
+                    )} */}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>
@@ -300,13 +320,6 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
               <Clock className="w-4 h-4" />
               새 일정 생성
             </DialogTitle>
-            <DialogDescription>
-              {pendingBlock && (
-                <>
-                  {formatTime(pendingBlock.startTime)} - {formatTime(pendingBlock.endTime)} 시간대의 새 일정을 생성합니다.
-                </>
-              )}
-            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -315,7 +328,7 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
               <Input
                 value={newBlockTitle}
                 onChange={(e) => setNewBlockTitle(e.target.value)}
-                onKeyDown={handleKeyDown}  // ✅ onKeyPress → onKeyDown
+                onKeyDown={handleKeyDown}  // ✅ Enter 제출
                 placeholder="일정 제목을 입력하세요"
                 autoFocus
               />
