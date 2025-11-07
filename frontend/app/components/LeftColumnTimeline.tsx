@@ -164,7 +164,7 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
           >
             {/* 임시 가드: 만약 동일 DOM이 두 번 찍히면 뒤쪽은 숨김 */}
             <style jsx>{`
-              [data-role="timeline"] [data-timeline-block] + [data-timeline-block] {
+              [data-role="timeline"] [data-timeline-block] .tl-inner ~ .tl-inner{
                 display: none;
               }
             `}</style>
@@ -216,7 +216,7 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
                   </button>
 
                   {/* 중앙 컨텐츠 — 오직 한 벌만 출력 */}
-                  <div className="relative z-10 h-full w-full flex flex-col items-center justify-center text-center px-3">
+                  <div className="tl-inner relative z-10 h-full w-full flex flex-col items-center justify-center text-center px-3">
                     <div className="text-[13px] font-semibold opacity-95">{timeText}</div>
                     {isEditing ? (
                       <input
