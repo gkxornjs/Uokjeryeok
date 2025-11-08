@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useMemo } from 'react'
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { Clock, X } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Button } from './ui/button'
@@ -137,6 +137,24 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
   const handleCloseModal = () => {
     setShowCreateModal(false); setPendingBlock(null); setNewBlockTitle(''); setNewBlockMemo('')
   }
+
+  useEffect(() => {
+  const root = timelineRef.current
+  if (!root) return
+  const nodes = Array.from(root.querySelectorAll<HTMLElement>('[data-timeline-block]'))
+  const seen = new Set<string>()
+  nodes.forEach((el) => {
+    const k = el.getAttribute('data-timeline-block') || ''
+    if (!k) return
+    if (seen.has(k)) {
+      // 두 번째 이후는 숨김
+      el.style.display = 'none'
+    } else {
+      el.style.display = '' // 첫 번째는 보이도록 복구
+      seen.add(k)
+    }
+  })
+}, [blocksToRender])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleCreateBlock() }
