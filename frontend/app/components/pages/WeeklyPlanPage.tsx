@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { weekAnchor } from '@/app/lib/period'
 import type { WeeklyContent } from '@/types/records'
 import { getRecord, saveRecord } from '@/app/lib/records'
+
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
 /* ------------------------------------------------------------------ */
@@ -33,6 +34,7 @@ interface WeeklyPlanPageProps {
   weekOffset?: number
   onWeekOffsetChange?: (offset: number) => void
   onUpdateWeeklyTodos?: (todos: TodoItem[]) => void // optional
+  onGoDashboard?: () => void
 }
 
 interface Goal {
@@ -74,13 +76,6 @@ const DAYS = ['월요일', '화요일', '수요일', '목요일', '금요일', '
 /* ------------------------------------------------------------------ */
 /* In-memory storage (데모용)                                         */
 /* ------------------------------------------------------------------ */
-interface WeeklyPlanPageProps {
-  currentDate: Date;
-  weekOffset?: number;
-  onWeekOffsetChange?: (offset: number) => void;
-  onUpdateWeeklyTodos?: (todos: TodoItem[]) => void;
-  onGoDashboard?: () => void;      // ✅ 추가
-}
 interface WeeklyData {
   goals: Goal[]
   timeBlocks: TimeBlock[]
@@ -107,7 +102,8 @@ export function WeeklyPlanPage({
   currentDate,
   weekOffset = 0,
   onWeekOffsetChange: _onWeekOffsetChange, // (미사용 시 lint 무시)
-  onUpdateWeeklyTodos,onGoDashboard,      
+  onUpdateWeeklyTodos,
+  onGoDashboard,
 }: WeeklyPlanPageProps) {
   const [newMemoInput, setNewMemoInput] = useState('')
   const [newTodoInput, setNewTodoInput] = useState('')
@@ -123,43 +119,40 @@ export function WeeklyPlanPage({
   const [pendingBlock, setPendingBlock] = useState<{ startTime: number; endTime: number; day: number } | null>(null)
 
   const timelineRef = useRef<HTMLDivElement>(null)
-useEffect(() => {
-  const load = async () => {
-    const key = weekAnchor(currentDate)   // ✅ 그 주의 월요일
-    try {
-      const rec = await getRecord(key)
-      if (rec?.content) {
-        const c = rec.content as WeeklyContent
-        setGoals(c.goals ?? [])
-        setTimeBlocks(c.timeBlocks ?? [])
-        setQuickMemos(c.quickMemos ?? [])
-        setTodos(c.todos ?? [])
-        setFeedback(c.feedback ?? { evaluation:'', praise:'', criticism:'', insights:'' })
+
+  // DB에서 로드
+  useEffect(() => {
+    const load = async () => {
+      const key = weekAnchor(currentDate)
+      try {
+        const rec = await getRecord(key)
+        if (rec?.content) {
+          const c = rec.content as WeeklyContent
+          setGoals(c.goals ?? [])
+          setTimeBlocks(c.timeBlocks ?? [])
+          setQuickMemos(c.quickMemos ?? [])
+          setTodos(c.todos ?? [])
+          setFeedback(c.feedback ?? { evaluation: '', praise: '', criticism: '', insights: '' })
+        }
+      } catch (e) {
+        console.error('weekly load error', e)
       }
+    }
+    load()
+  }, [currentDate])
+
+  const handleSave = async () => {
+    const key = weekAnchor(currentDate)
+    const payload: WeeklyContent = { goals, timeBlocks, quickMemos, todos, feedback }
+    try {
+      await saveRecord(key, payload)
+      toast.success('저장되었습니다.')
     } catch (e) {
-      console.error('weekly load error', e)
+      toast.error('저장에 실패했습니다.')
+      console.error('weekly save error', e)
     }
   }
-  load()
-}, [currentDate])   // 주간 오프셋/날짜 변경 시 다시 로드
 
-const handleSave = async () => {
-  const key = weekAnchor(currentDate)
-  const payload: WeeklyContent = {
-    goals,
-    timeBlocks,
-    quickMemos,
-    todos,
-    feedback,
-  }
-  try {
-    await saveRecord(key, payload)   // ⬅️ DB 저장
-    toast.success('저장되었습니다.')            // ⬅️ 저장 후 대시보드 이동
-  } catch (e) {
-    toast.error('저장에 실패했습니다.')
-    console.error('weekly save error', e)
-  }
-}
   // 주간 범위
   const getCurrentWeek = () => {
     const date = new Date(currentDate)
@@ -200,12 +193,12 @@ const handleSave = async () => {
     onUpdateWeeklyTodos?.(weekData.todos)
   }, [currentWeekKey, onUpdateWeeklyTodos])
 
-  // 변경 시 저장
+  // 변경 시 임시 저장
   useEffect(() => {
     weeklyDataStorage[currentWeekKey] = { goals, timeBlocks, feedback, quickMemos, todos }
   }, [goals, timeBlocks, feedback, quickMemos, todos, currentWeekKey])
 
-  // 부모 통지 (DailyRecordPage에서 사용)
+  // 부모 통지
   useEffect(() => {
     onUpdateWeeklyTodos?.(todos)
   }, [todos, onUpdateWeeklyTodos])
@@ -309,7 +302,7 @@ const handleSave = async () => {
     if (!timelineRef.current) return 0
     const rect = timelineRef.current.getBoundingClientRect()
     const relativeY = Math.max(0, y - rect.top)
-    const slotHeight = rect.height / 48 // 30분간격 48칸
+    const slotHeight = rect.height / 48 // 30분 간격 48칸
     const slot = Math.floor(relativeY / slotHeight)
     return Math.max(0, Math.min(47, slot)) * 30
   }
@@ -332,16 +325,31 @@ const handleSave = async () => {
     }
   }
 
+  // ✅ 최소 드래그 거리 가드 + 동일 요일만 생성
   const handleMouseUp = () => {
-    if (isSelecting && selectionStart && selectionEnd && selectionStart.day === selectionEnd.day) {
-      const start = Math.min(selectionStart.time, selectionEnd.time)
-      const end = Math.max(selectionStart.time, selectionEnd.time) + 30
-      if (end > start) {
-        setPendingBlock({ startTime: start, endTime: end, day: selectionStart.day })
-        setShowCreateModal(true)
-        setNewBlockTitle('')
-      }
+    if (!(isSelecting && selectionStart && selectionEnd)) {
+      setIsSelecting(false)
+      setSelectionStart(null)
+      setSelectionEnd(null)
+      return
     }
+
+    const dragMinutes = Math.abs(selectionEnd.time - selectionStart.time)
+    if (dragMinutes < 30 || selectionStart.day !== selectionEnd.day) {
+      setIsSelecting(false)
+      setSelectionStart(null)
+      setSelectionEnd(null)
+      return
+    }
+
+    const start = Math.min(selectionStart.time, selectionEnd.time)
+    const end = Math.max(selectionStart.time, selectionEnd.time) + 30
+
+    if (end > start) {
+      setPendingBlock({ startTime: start, endTime: end, day: selectionStart.day })
+      setShowCreateModal(true)
+    }
+
     setIsSelecting(false)
     setSelectionStart(null)
     setSelectionEnd(null)
@@ -357,7 +365,7 @@ const handleSave = async () => {
         title: newBlockTitle.trim(),
         color: BLOCK_COLORS[timeBlocks.length % BLOCK_COLORS.length],
       }
-      setTimeBlocks([...timeBlocks, newBlock])
+      setTimeBlocks((prev) => [...prev, newBlock])
       handleCloseModal()
     }
   }
@@ -369,7 +377,7 @@ const handleSave = async () => {
     setNewBlockMemo('')
   }
 
-  const deleteTimeBlock = (id: string) => setTimeBlocks(timeBlocks.filter((b) => b.id !== id))
+  const deleteTimeBlock = (id: string) => setTimeBlocks((prev) => prev.filter((b) => b.id !== id))
   const formatTime = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
 
   /* ------------------------- Inner components -------------------- */
@@ -486,10 +494,8 @@ const handleSave = async () => {
       },
     })
 
-    // 드래그/드롭 연결 (ref 객체 사용 → TS OK)
     drag(drop(rowRef))
 
-    // 새로 추가된 목표 자동 포커스
     useEffect(() => {
       if (autoFocus && inputRef.current) {
         inputRef.current.focus()
@@ -519,116 +525,113 @@ const handleSave = async () => {
   }
 
   const TodoRow = ({
-  todo,
-  autoFocus,
-  onFocused,
-}: {
-  todo: TodoItem;
-  autoFocus: boolean;        // 부모에서 내려줌
-  onFocused: () => void;     // 포커스 후 리셋
-}) => {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+    todo,
+    autoFocus,
+    onFocused,
+  }: {
+    todo: TodoItem
+    autoFocus: boolean
+    onFocused: () => void
+  }) => {
+    const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  useEffect(() => {
-    if (autoFocus && textareaRef.current) {
-      textareaRef.current.focus();
-      onFocused();
-    }
-  }, [autoFocus, onFocused]);   // ← 더 이상 focusedTodoId 의존 X
+    useEffect(() => {
+      if (autoFocus && textareaRef.current) {
+        textareaRef.current.focus()
+        onFocused()
+      }
+    }, [autoFocus, onFocused])
 
-  return (
-    <div className="flex items-center space-x-3 p-3 bg-muted/30 rounded-lg border">
-      <Checkbox
-        checked={todo.completed}
-        onCheckedChange={(checked) => updateTodo(todo.id, 'completed', checked)}
-        className="flex-shrink-0"
-      />
-      <Textarea
-        ref={textareaRef}
-        value={todo.title}
-        onChange={(e) => updateTodo(todo.id, 'title', e.target.value)}
-        placeholder="할일을 입력하세요"
-        className={`flex-1 bg-transparent border-none resize-none min-h-[24px] p-0 focus:ring-0 ${
-          todo.completed ? 'line-through text-muted-foreground' : ''
-        }`}
-        style={{ boxShadow: 'none' }}
-      />
-      <Select
-        value={todo.assignedDay || 'unassigned'}
-        onValueChange={(v) => updateTodo(todo.id, 'assignedDay', v === 'unassigned' ? undefined : v)}
-      >
-        <SelectTrigger className="w-32 h-8 text-xs bg-white border border-gray-200">
-          <SelectValue placeholder="요일" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="unassigned">미설정</SelectItem>
-          {getDayOptionsWithDates().map((d) => (
-            <SelectItem key={d.value} value={d.value}>
-              {d.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Button
-        size="sm"
-        variant="ghost"
-        onClick={() => deleteTodo(todo.id)}
-        className="w-8 h-8 p-0 text-gray-400 hover:text-red-500 flex-shrink-0"
-      >
-        <X className="w-4 h-4" />
-      </Button>
-    </div>
-  );
-};
-
-
-const MemoItem = ({
-  value,
-  onChange,
-  onDelete,
-  autoFocus,
-  onFocused,
-}: {
-  value: string;
-  onChange: (val: string) => void;
-  onDelete: () => void;
-  autoFocus: boolean;
-  onFocused: () => void;
-}) => {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // autoFocus만 의존 → hooks/exhaustive-deps 경고 없음
-  useEffect(() => {
-    if (autoFocus && textareaRef.current) {
-      textareaRef.current.focus();
-      onFocused();
-    }
-  }, [autoFocus, onFocused]);
-
-  return (
-    <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-      <div className="flex items-start space-x-2">
+    return (
+      <div className="flex items-center space-x-3 p-3 bg-muted/30 rounded-lg border">
+        <Checkbox
+          checked={todo.completed}
+          onCheckedChange={(checked) => updateTodo(todo.id, 'completed', checked)}
+          className="flex-shrink-0"
+        />
         <Textarea
           ref={textareaRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="메모를 입력하세요"
-          className="flex-1 text-sm bg-transparent border-none resize-none min-h-[40px] p-0 focus:ring-0"
+          value={todo.title}
+          onChange={(e) => updateTodo(todo.id, 'title', e.target.value)}
+          placeholder="할일을 입력하세요"
+          className={`flex-1 bg-transparent border-none resize-none min-h-[24px] p-0 focus:ring-0 ${
+            todo.completed ? 'line-through text-muted-foreground' : ''
+          }`}
           style={{ boxShadow: 'none' }}
         />
+        <Select
+          value={todo.assignedDay || 'unassigned'}
+          onValueChange={(v) => updateTodo(todo.id, 'assignedDay', v === 'unassigned' ? undefined : v)}
+        >
+          <SelectTrigger className="w-32 h-8 text-xs bg-white border border-gray-200">
+            <SelectValue placeholder="요일" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="unassigned">미설정</SelectItem>
+            {getDayOptionsWithDates().map((d) => (
+              <SelectItem key={d.value} value={d.value}>
+                {d.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button
           size="sm"
           variant="ghost"
-          onClick={onDelete}
-          className="w-6 h-6 p-0 text-gray-400 hover:text-red-500 flex-shrink-0"
+          onClick={() => deleteTodo(todo.id)}
+          className="w-8 h-8 p-0 text-gray-400 hover:text-red-500 flex-shrink-0"
         >
-          <X className="w-3 h-3" />
+          <X className="w-4 h-4" />
         </Button>
       </div>
-    </div>
-  );
-};
+    )
+  }
 
+  const MemoItem = ({
+    value,
+    onChange,
+    onDelete,
+    autoFocus,
+    onFocused,
+  }: {
+    value: string
+    onChange: (val: string) => void
+    onDelete: () => void
+    autoFocus: boolean
+    onFocused: () => void
+  }) => {
+    const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+    useEffect(() => {
+      if (autoFocus && textareaRef.current) {
+        textareaRef.current.focus()
+        onFocused()
+      }
+    }, [autoFocus, onFocused])
+
+    return (
+      <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="flex items-start space-x-2">
+          <Textarea
+            ref={textareaRef}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="메모를 입력하세요"
+            className="flex-1 text-sm bg-transparent border-none resize-none min-h-[40px] p-0 focus:ring-0"
+            style={{ boxShadow: 'none' }}
+          />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onDelete}
+            className="w-6 h-6 p-0 text-gray-400 hover:text-red-500 flex-shrink-0"
+          >
+            <X className="w-3 h-3" />
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   /* ------------------------------ UI ----------------------------- */
   return (
@@ -690,14 +693,13 @@ const MemoItem = ({
 
             <div className="space-y-3">
               {todos.map((todo) => (
-               <TodoRow
-                key={todo.id}
-                todo={todo}
-                autoFocus={focusedTodoId === todo.id}  // ✅ 포커스 여부만 전달
-                onFocused={() => setFocusedTodoId(null)} // ✅ 포커스 후 리셋
+                <TodoRow
+                  key={todo.id}
+                  todo={todo}
+                  autoFocus={focusedTodoId === todo.id}
+                  onFocused={() => setFocusedTodoId(null)}
                 />
               ))}
-
             </div>
           </Card>
 
@@ -724,22 +726,21 @@ const MemoItem = ({
 
             <div className="space-y-2">
               {quickMemos.map((m, i) => (
-  <MemoItem
-    key={i}
-    value={m}
-    onChange={(val) =>
-      setQuickMemos((prev) => {
-        const next = [...prev];
-        next[i] = val;
-        return next;
-      })
-    }
-    onDelete={() => deleteQuickMemo(i)}
-    autoFocus={focusedMemoIndex === i}
-    onFocused={() => setFocusedMemoIndex(null)}
-  />
-))}
-
+                <MemoItem
+                  key={i}
+                  value={m}
+                  onChange={(val) =>
+                    setQuickMemos((prev) => {
+                      const next = [...prev]
+                      next[i] = val
+                      return next
+                    })
+                  }
+                  onDelete={() => deleteQuickMemo(i)}
+                  autoFocus={focusedMemoIndex === i}
+                  onFocused={() => setFocusedMemoIndex(null)}
+                />
+              ))}
             </div>
           </Card>
 
@@ -752,191 +753,151 @@ const MemoItem = ({
             </div>
             <p className="text-sm text-muted-foreground -mt-1 mb-4">드래그하여 일정을 추가하세요</p>
 
+            {/* ✅ 중앙정렬 래퍼 */}
             <div className="flex justify-center">
-  <div className="w-full max-w-[1100px] border-2 border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm mx-auto">
-    {/* Header Row */}
-    <div className="grid grid-cols-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2 border-gray-300">
-      <div className="p-3 border-r border-gray-200 text-center font-medium text-sm">시간</div>
-      {DAYS.map((day, index) => (
-        <div key={day} className="p-3 border-r border-gray-200 last:border-r-0 text-center">
-          <div className="font-medium text-sm">{day}</div>
-          <div className="text-xs text-gray-500 mt-1">{String(monday.getDate() + index).padStart(2, '0')}</div>
-        </div>
-      ))}
-    </div>
-    </div>
-
-              {/* Time Grid */}
-              <div
-                ref={timelineRef}
-                className="relative"
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-              >
-                {/* 선택 드래그 오버레이 */}
-                {isSelecting && selectionStart && selectionEnd && selectionStart.day === selectionEnd.day && timelineRef.current && (() => {
-                  const startTime = Math.min(selectionStart.time, selectionEnd.time)
-                  const endTime = Math.max(selectionStart.time, selectionEnd.time) + 30
-                  const columnWidth = 12.5 // 100% / 8
-                  const rect = timelineRef.current.getBoundingClientRect()
-                  const slotHeight = rect.height / 48
-
-                  return (
-                    <div
-                      className="absolute border-2 border-blue-500 border-dashed rounded bg-blue-200/60 z-20 pointer-events-none"
-                      style={{
-                        left: `${columnWidth * (selectionStart.day + 1)}%`,
-                        width: `${columnWidth}%`,
-                        top: `${(startTime / 30) * slotHeight}px`,
-                        height: `${((endTime - startTime) / 30) * slotHeight}px`,
-                      }}
-                    />
-                  )
-                })()}
-
-                {/* 30분 간격 48칸 */}
-                {Array.from({ length: 48 }, (_, slotIndex) => {
-                  const hour = Math.floor(slotIndex / 2)
-                  const isTopHalf = slotIndex % 2 === 0
-                  const minutes = hour * 60 + (isTopHalf ? 0 : 30)
-
-                  return (
-                    <div key={slotIndex} className="grid grid-cols-8 border-b border-gray-100 last:border-b-0">
-                      {/* Hour Label */}
-                      <div className="border-r border-gray-200 h-8 flex items-center justify-center bg-gray-50/50">
-                        {isTopHalf && <span className="text-xs font-medium text-gray-600">{String(hour).padStart(2, '0')}:00</span>}
-                      </div>
-
-                      {/* Day Columns */}
-                      {DAYS.map((_, dayIndex) => (
-                        <div
-                          key={`${slotIndex}-${dayIndex}`}
-                          className="border-r border-gray-200 last:border-r-0 h-8 relative cursor-pointer hover:bg-blue-50/30 transition-colors"
-                          onMouseDown={(e) => {
-                            e.preventDefault()
-                            const startTime = getTimeFromPosition(e.clientY)
-                            const startDay = getDayFromPosition(e.clientX)
-                            setIsSelecting(true)
-                            setSelectionStart({ day: startDay, time: startTime })
-                            setSelectionEnd({ day: startDay, time: startTime })
-                          }}
-                        >
-                          {/* 시간 경계선 */}
-                          {!isTopHalf && <div className="absolute bottom-0 left-0 right-0 border-b border-gray-300" />}
-
-                          {/* 해당 슬롯에서 시작하는 블록들 */}
-                          {timeBlocks
-                            .filter((b) => b.day === dayIndex && b.startTime === minutes)
-                            .map((block) => {
-                              const durationSlots = (block.endTime - block.startTime) / 30
-                              const rect = timelineRef.current?.getBoundingClientRect()
-                              const slotHeight = rect ? rect.height / 48 : 32
-                              return (
-                                <div
-                                  key={block.id}
-                                  data-block
-                                  className="absolute inset-x-1 rounded text-white text-xs group cursor-pointer z-10"
-                                  style={{
-                                    backgroundColor: block.color,
-                                    height: `${durationSlots * slotHeight - 2}px`,
-                                    top: '1px',
-                                  }}
-                                   onMouseDown={(e) => { e.stopPropagation(); }}
-                                    onMouseUp={(e) => { e.stopPropagation(); }}
-                                >
-                                  <div className="p-1 h-full flex flex-col justify-between">
-                                    <div className="flex-1 min-w-0">
-                                      <div className="font-medium truncate">{block.title}</div>
-                                      <div className="text-xs opacity-90">
-                                        {formatTime(block.startTime)}-{formatTime(block.endTime)}
-                                      </div>
-                                    </div>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                       onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }} // ✅ 추가
-                                      onMouseUp={(e) => { e.stopPropagation(); e.preventDefault(); }}   // ✅ 추가
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        deleteTimeBlock(block.id)
-                                      }}
-                                      className="w-4 h-4 p-0 text-white hover:bg-white/20 opacity-0 group-hover:opacity-100 self-end"
-                                    >
-                                      <X className="w-3 h-3" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              )
-                            })}
-                        </div>
-                      ))}
+              {/* ✅ 실제 시간표 박스 (오버플로 방지) */}
+              <div className="w-full max-w-[1100px] mx-auto border-2 border-gray-300 rounded-lg shadow-sm bg-white relative overflow-hidden isolate">
+                {/* Header Row */}
+                <div className="grid grid-cols-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2 border-gray-300">
+                  <div className="p-3 border-r border-gray-200 text-center font-medium text-sm">시간</div>
+                  {DAYS.map((day, index) => (
+                    <div key={day} className="p-3 border-r last:border-r-0 border-gray-200 text-center">
+                      <div className="font-medium text-sm">{day}</div>
+                      <div className="text-xs text-gray-500 mt-1">{String(monday.getDate() + index).padStart(2, '0')}</div>
                     </div>
-                  )
-                })}
+                  ))}
+                </div>
+
+                {/* ✅ Time Grid (컨테이너 내부) */}
+                <div
+                  ref={timelineRef}
+                  className="relative select-none"
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                  onDragStart={(e) => e.preventDefault()}
+                >
+                  {/* 선택 드래그 오버레이 */}
+                  {isSelecting && selectionStart && selectionEnd && selectionStart.day === selectionEnd.day && timelineRef.current && (() => {
+                    const startTime = Math.min(selectionStart.time, selectionEnd.time)
+                    const endTime = Math.max(selectionStart.time, selectionEnd.time) + 30
+                    const columnWidth = 12.5 // 100% / 8
+                    const rect = timelineRef.current.getBoundingClientRect()
+                    const slotHeight = rect.height / 48
+
+                    return (
+                      <div
+                        className="absolute border-2 border-blue-500 border-dashed rounded bg-blue-200/60 z-20 pointer-events-none"
+                        style={{
+                          left: `${columnWidth * (selectionStart.day + 1)}%`,
+                          width: `${columnWidth}%`,
+                          top: `${(startTime / 30) * slotHeight}px`,
+                          height: `${((endTime - startTime) / 30) * slotHeight}px`,
+                        }}
+                      />
+                    )
+                  })()}
+
+                  {/* 30분 간격 48칸 */}
+                  {Array.from({ length: 48 }, (_, slotIndex) => {
+                    const hour = Math.floor(slotIndex / 2)
+                    const isTopHalf = slotIndex % 2 === 0
+                    const minutes = hour * 60 + (isTopHalf ? 0 : 30)
+
+                    return (
+                      <div key={slotIndex} className="grid grid-cols-8 border-b border-gray-100 last:border-b-0">
+                        {/* Hour Label */}
+                        <div className="border-r border-gray-200 h-8 flex items-center justify-center bg-gray-50/50">
+                          {isTopHalf && <span className="text-xs font-medium text-gray-600">{String(hour).padStart(2, '0')}:00</span>}
+                        </div>
+
+                        {/* Day Columns */}
+                        {DAYS.map((_, dayIndex) => (
+                          <div
+                            key={`${slotIndex}-${dayIndex}`}
+                            className="border-r border-gray-200 last:border-r-0 h-8 relative cursor-pointer hover:bg-blue-50/30 transition-colors"
+                            onMouseDown={(e) => {
+                              // ✅ 블록/버튼 클릭으로 드래그 시작되는 것 방지
+                              const el = e.target as HTMLElement
+                              if (el.closest('[data-block]') || el.closest('button') || el.closest('[role="button"]')) return
+
+                              e.preventDefault()
+                              const startTime = getTimeFromPosition(e.clientY)
+                              const startDay = getDayFromPosition(e.clientX)
+                              setIsSelecting(true)
+                              setSelectionStart({ day: startDay, time: startTime })
+                              setSelectionEnd({ day: startDay, time: startTime })
+                            }}
+                          >
+                            {/* 시간 경계선 */}
+                            {!isTopHalf && <div className="absolute bottom-0 left-0 right-0 border-b border-gray-300" />}
+
+                            {/* 해당 슬롯에서 시작하는 블록들 */}
+                            {timeBlocks
+                              .filter((b) => b.day === dayIndex && b.startTime === minutes)
+                              .map((block) => {
+                                const durationSlots = (block.endTime - block.startTime) / 30
+                                const rect = timelineRef.current?.getBoundingClientRect()
+                                const slotHeight = rect ? rect.height / 48 : 32
+                                return (
+                                  <div
+                                    key={block.id}
+                                    data-block
+                                    className="absolute inset-x-1 rounded text-white text-xs group cursor-pointer z-10"
+                                    style={{
+                                      backgroundColor: block.color,
+                                      height: `${durationSlots * slotHeight - 2}px`,
+                                      top: '1px',
+                                    }}
+                                    // ✅ 상위 onMouseDown/Up으로의 전파 차단(삭제 시 모달 뜨는 문제 방지)
+                                    onMouseDown={(e) => { e.stopPropagation() }}
+                                    onMouseUp={(e) => { e.stopPropagation() }}
+                                  >
+                                    <div className="p-1 h-full flex flex-col justify-between">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="font-medium truncate">{block.title}</div>
+                                        <div className="text-xs opacity-90">
+                                          {formatTime(block.startTime)}-{formatTime(block.endTime)}
+                                        </div>
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="w-4 h-4 p-0 text-white hover:bg-white/20 opacity-0 group-hover:opacity-100 self-end"
+                                        onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }}
+                                        onMouseUp={(e) => { e.stopPropagation(); e.preventDefault() }}
+                                        onClick={(e) => { e.stopPropagation(); deleteTimeBlock(block.id) }}
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
           </Card>
-
-          {/* Weekly Feedback */}
-          <div className="space-y-6">
-            <h2 className="text-lg font-semibold">주간 피드백</h2>
-
-            <Card className="p-6">
-              <h3 className="font-semibold mb-3">주 평가</h3>
-              <Textarea
-                value={feedback.evaluation}
-                onChange={(e) => setFeedback({ ...feedback, evaluation: e.target.value })}
-                placeholder="이번 주를 평가해보세요..."
-                className="min-h-24 resize-none border border-gray-200 bg-gray-50/30"
-              />
-            </Card>
-
-            <Card className="p-6">
-              <h3 className="font-semibold mb-3">주 칭찬</h3>
-              <Textarea
-                value={feedback.praise}
-                onChange={(e) => setFeedback({ ...feedback, praise: e.target.value })}
-                placeholder="자신을 칭찬해보세요..."
-                className="min-h-24 resize-none border border-gray-200 bg-gray-50/30"
-              />
-            </Card>
-
-            <Card className="p-6">
-              <h3 className="font-semibold mb-3">주 비판</h3>
-              <Textarea
-                value={feedback.criticism}
-                onChange={(e) => setFeedback({ ...feedback, criticism: e.target.value })}
-                placeholder="개선할 점을 적어보세요..."
-                className="min-h-24 resize-none border border-gray-200 bg-gray-50/30"
-              />
-            </Card>
-
-            <Card className="p-6">
-              <h3 className="font-semibold mb-3">이번 주 인사이트</h3>
-              <Textarea
-                value={feedback.insights}
-                onChange={(e) => setFeedback({ ...feedback, insights: e.target.value })}
-                placeholder="깨달은 점을 적어보세요..."
-                className="min-h-24 resize-none border border-gray-200 bg-gray-50/30"
-              />
-            </Card>
-          </div>
         </div>
 
         {/* Sticky Save */}
         <div className="sticky bottom-0 bg-white border-t p-4">
-  <div className="flex justify-center">
-    <Button
-  size="lg"
-  className="bg-blue-600 hover:bg-blue-700"
-  onClick={handleSave}           // ⬅️ 여기만 변경
->
-  <Save className="w-4 h-4 mr-2" />
-  저장하기
-</Button>
-  </div>
-</div>
+          <div className="flex justify-center">
+            <Button
+              size="lg"
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={handleSave}
+            >
+              <Save className="w-4 h-4 mr-2" />
+              저장하기
+            </Button>
+          </div>
+        </div>
 
         {/* Create Time Block Modal */}
         <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
