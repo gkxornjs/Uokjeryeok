@@ -752,17 +752,19 @@ const MemoItem = ({
             </div>
             <p className="text-sm text-muted-foreground -mt-1 mb-4">드래그하여 일정을 추가하세요</p>
 
-            <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm">
-              {/* Header Row */}
-              <div className="grid grid-cols-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2 border-gray-300">
-                <div className="p-3 border-r border-gray-200 text-center font-medium text-sm">시간</div>
-                {DAYS.map((day, index) => (
-                  <div key={day} className="p-3 border-r border-gray-200 last:border-r-0 text-center">
-                    <div className="font-medium text-sm">{day}</div>
-                    <div className="text-xs text-gray-500 mt-1">{String(monday.getDate() + index).padStart(2, '0')}</div>
-                  </div>
-                ))}
-              </div>
+            <div className="flex justify-center">
+  <div className="w-full max-w-[1100px] border-2 border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm mx-auto">
+    {/* Header Row */}
+    <div className="grid grid-cols-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2 border-gray-300">
+      <div className="p-3 border-r border-gray-200 text-center font-medium text-sm">시간</div>
+      {DAYS.map((day, index) => (
+        <div key={day} className="p-3 border-r border-gray-200 last:border-r-0 text-center">
+          <div className="font-medium text-sm">{day}</div>
+          <div className="text-xs text-gray-500 mt-1">{String(monday.getDate() + index).padStart(2, '0')}</div>
+        </div>
+      ))}
+    </div>
+    </div>
 
               {/* Time Grid */}
               <div
@@ -833,12 +835,15 @@ const MemoItem = ({
                               return (
                                 <div
                                   key={block.id}
+                                  data-block
                                   className="absolute inset-x-1 rounded text-white text-xs group cursor-pointer z-10"
                                   style={{
                                     backgroundColor: block.color,
                                     height: `${durationSlots * slotHeight - 2}px`,
                                     top: '1px',
                                   }}
+                                   onMouseDown={(e) => { e.stopPropagation(); }}
+                                    onMouseUp={(e) => { e.stopPropagation(); }}
                                 >
                                   <div className="p-1 h-full flex flex-col justify-between">
                                     <div className="flex-1 min-w-0">
@@ -850,6 +855,8 @@ const MemoItem = ({
                                     <Button
                                       size="sm"
                                       variant="ghost"
+                                       onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }} // ✅ 추가
+                                      onMouseUp={(e) => { e.stopPropagation(); e.preventDefault(); }}   // ✅ 추가
                                       onClick={(e) => {
                                         e.stopPropagation()
                                         deleteTimeBlock(block.id)
