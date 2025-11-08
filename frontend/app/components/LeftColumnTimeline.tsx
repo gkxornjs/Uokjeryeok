@@ -165,7 +165,7 @@ export function LeftColumnTimeline({ blocks, onBlocksChange }: LeftColumnTimelin
             {/* 임시 가드: 만약 동일 DOM이 두 번 찍히면 뒤쪽은 숨김 */}
             <style jsx>{`
               [data-role="timeline"] [data-timeline-block] .tl-inner ~ .tl-inner{
-                display: none;
+                display: none !important;
               }
             `}</style>
 
